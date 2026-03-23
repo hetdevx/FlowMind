@@ -167,4 +167,3 @@ All paths inside the knowledge graph are repo-relative and normalized:
 - Wrong: `./src/auth/auth.service.ts`
 
 `kg-update.sh` normalizes paths automatically. Use repo-relative paths when referring to files in prompts for best results.
-# FlowMind
