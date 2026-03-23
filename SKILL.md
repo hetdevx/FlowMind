@@ -362,15 +362,17 @@ Diagrams are rendered as **visual images** using the Excalidraw MCP tool — not
    - Flow or sequence diagram → `flowmind-flow-tracer` (pass entry point + function name)
    - Architecture diagram → `flowmind-folder-analyzer` for each top-level folder not already in KG
    - Dependency diagram → `flowmind-dependency-mapper` (pass target + direction)
-4. **Ensure Excalidraw MCP is available** before rendering:
-   - If Excalidraw MCP tools are missing/unavailable, **automatically add/enable Excalidraw MCP** in the current environment, then continue
-   - Retry the failed Excalidraw MCP call after setup; only fail if setup+retry both fail
+4. **Ensure Excalidraw MCP is available (MANDATORY):**
+   - You **MUST automatically add/enable Excalidraw MCP** if tools are missing/unavailable
+   - You **MUST retry** the failed Excalidraw MCP call after setup
+   - This is **required for every diagram run** (no exceptions)
 5. **Call `mcp__claude_ai_Excalidraw__read_me`** first (once per session) to load element format reference
 6. **Call `mcp__claude_ai_Excalidraw__create_view`** with a JSON array of Excalidraw elements — never invent steps; mark uncertain nodes with "(inferred)" in the label
-7. **Always create a persistent `.excalidraw` file** for every diagram:
+7. **Always create a NEW persistent `.excalidraw` file (MANDATORY) for every diagram request:**
    - Call `mcp__claude_ai_Excalidraw__export_to_excalidraw`
-   - Save the result to a repo file path (for example: `.claude/diagrams/<diagram-name>.excalidraw`)
-   - Do this for every diagram request (no exceptions)
+   - Save to a **new unique repo path** every time (for example: `.claude/diagrams/<diagram-name>-<timestamp>.excalidraw`)
+   - **Never overwrite or reuse** a previous `.excalidraw` file path
+   - This is **required for every diagram request** (no exceptions)
 8. **Write back to KG** via `kg-update.sh --merge` — ONLY if:
    - New grounded data was collected this session (not just read from KG)
    - Subagent confidence is "high" or "medium"
@@ -442,10 +444,22 @@ After `create_view` renders the diagram, output:
 **Type:** [Flow / Sequence / Architecture / Dependency]
 **Grounded from:** [KG flow keys or files read]
 **What this shows:** [1–2 sentence plain-English explanation]
-**Excalidraw File:** [clickable repo path to the saved `.excalidraw` file]
+**Excalidraw File:** [clickable repo path to the NEW saved `.excalidraw` file for this run]
 **Known Gaps:** [any (inferred) nodes, unread files, or "none"]
 **File References:** [file.ts:line — why relevant]
 ```
+
+**Mandatory output rule (MANDATORY):** On every diagram response, you **MUST** provide a **new unique Excalidraw file link** generated in that run. Reusing an older link is **never allowed**.
+
+### Non-negotiable enforcement
+
+For every diagram request, all three conditions are compulsory:
+
+1. Excalidraw MCP setup is forced: if missing, auto-install/enable, then retry.
+2. `.excalidraw` file creation is forced: always create a new unique file.
+3. Link output is forced: always return the new unique link for that run.
+
+If any one of the three is missing, the diagram task is incomplete.
 
 ---
 
