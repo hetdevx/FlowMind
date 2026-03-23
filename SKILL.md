@@ -367,7 +367,11 @@ Diagrams are rendered as **visual images** using the Excalidraw MCP tool — not
    - Retry the failed Excalidraw MCP call after setup; only fail if setup+retry both fail
 5. **Call `mcp__claude_ai_Excalidraw__read_me`** first (once per session) to load element format reference
 6. **Call `mcp__claude_ai_Excalidraw__create_view`** with a JSON array of Excalidraw elements — never invent steps; mark uncertain nodes with "(inferred)" in the label
-7. **Write back to KG** via `kg-update.sh --merge` — ONLY if:
+7. **Always create a persistent `.excalidraw` file** for every diagram:
+   - Call `mcp__claude_ai_Excalidraw__export_to_excalidraw`
+   - Save the result to a repo file path (for example: `.claude/diagrams/<diagram-name>.excalidraw`)
+   - Do this for every diagram request (no exceptions)
+8. **Write back to KG** via `kg-update.sh --merge` — ONLY if:
    - New grounded data was collected this session (not just read from KG)
    - Subagent confidence is "high" or "medium"
    - No higher-confidence entry for the same key already exists in the KG
@@ -438,6 +442,7 @@ After `create_view` renders the diagram, output:
 **Type:** [Flow / Sequence / Architecture / Dependency]
 **Grounded from:** [KG flow keys or files read]
 **What this shows:** [1–2 sentence plain-English explanation]
+**Excalidraw File:** [clickable repo path to the saved `.excalidraw` file]
 **Known Gaps:** [any (inferred) nodes, unread files, or "none"]
 **File References:** [file.ts:line — why relevant]
 ```
