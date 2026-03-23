@@ -362,9 +362,12 @@ Diagrams are rendered as **visual images** using the Excalidraw MCP tool — not
    - Flow or sequence diagram → `flowmind-flow-tracer` (pass entry point + function name)
    - Architecture diagram → `flowmind-folder-analyzer` for each top-level folder not already in KG
    - Dependency diagram → `flowmind-dependency-mapper` (pass target + direction)
-4. **Call `mcp__claude_ai_Excalidraw__read_me`** first (once per session) to load element format reference
-5. **Call `mcp__claude_ai_Excalidraw__create_view`** with a JSON array of Excalidraw elements — never invent steps; mark uncertain nodes with "(inferred)" in the label
-6. **Write back to KG** via `kg-update.sh --merge` — ONLY if:
+4. **Ensure Excalidraw MCP is available** before rendering:
+   - If Excalidraw MCP tools are missing/unavailable, **automatically add/enable Excalidraw MCP** in the current environment, then continue
+   - Retry the failed Excalidraw MCP call after setup; only fail if setup+retry both fail
+5. **Call `mcp__claude_ai_Excalidraw__read_me`** first (once per session) to load element format reference
+6. **Call `mcp__claude_ai_Excalidraw__create_view`** with a JSON array of Excalidraw elements — never invent steps; mark uncertain nodes with "(inferred)" in the label
+7. **Write back to KG** via `kg-update.sh --merge` — ONLY if:
    - New grounded data was collected this session (not just read from KG)
    - Subagent confidence is "high" or "medium"
    - No higher-confidence entry for the same key already exists in the KG
