@@ -1,0 +1,127 @@
+{
+  "_comment": "FlowMind Knowledge Graph Schema v2. All fields except path/type are optional. Use confidence + evidence to prevent hallucination.",
+  "schema_version": "2",
+  "created_at": "",
+  "last_updated": "",
+  "last_session_start": "",
+  "repo_root": "",
+  "git": {
+    "branch": "",
+    "commit": ""
+  },
+
+  "session_reads": [
+    {
+      "path": "src/example/example.service.ts",
+      "read_at": "ISO timestamp",
+      "commit": "abc1234",
+      "depth": "opened"
+    }
+  ],
+
+  "analyzed_files": {
+    "src/example/example.service.ts": {
+      "analyzed_at": "ISO timestamp",
+      "commit": "abc1234",
+      "by_agent": "flowmind-file-analyzer",
+      "confidence": "high",
+      "known_gaps": ["did not trace downstream calls past PaymentService"]
+    }
+  },
+
+  "folders": {
+    "src/example-module": {
+      "purpose": "Single sentence — only write what you actually read",
+      "confidence": "high",
+      "key_files": [
+        { "path": "src/example-module/example.service.ts", "role": "Core logic" }
+      ],
+      "exports": ["ExampleModule", "ExampleService"],
+      "imports_from": ["src/other-module"],
+      "sub_modules": ["dto/", "guards/"],
+      "side_effects": ["reads example_table"],
+      "boundaries": "What other modules should/should not touch",
+      "known_gaps": [],
+      "evidence": "Read auth.service.ts lines 1-80, auth.controller.ts lines 1-45"
+    }
+  },
+
+  "files": {
+    "src/example-module/example.service.ts": {
+      "responsibility": "Single sentence",
+      "confidence": "high",
+      "exports": [
+        {
+          "name": "ExampleService",
+          "type": "class",
+          "methods": [
+            {
+              "name": "doSomething",
+              "line": 25,
+              "params": "input: SomeDto",
+              "returns": "Promise<Result>",
+              "calls": ["OtherService.method()", "Repository.save()"],
+              "side_effects": ["writes example_table"],
+              "throws": ["NotFoundException"],
+              "confidence": "high",
+              "evidence": "Read lines 25-67"
+            }
+          ]
+        }
+      ],
+      "imports": {
+        "internal": ["src/other/other.service.ts"],
+        "framework": ["@nestjs/common"],
+        "external": []
+      },
+      "global_state": null,
+      "init_side_effects": null,
+      "known_gaps": ["did not read private helper methods"]
+    }
+  },
+
+  "flows": {
+    "example-flow": {
+      "name": "Example Flow",
+      "entry_point": "POST /api/example",
+      "trigger": "HTTP request",
+      "confidence": "high",
+      "steps": [
+        {
+          "step": 1,
+          "layer": "controller",
+          "function": "ExampleController.create",
+          "file": "src/example-module/example.controller.ts",
+          "line": 20,
+          "description": "What this step does",
+          "input": "input shape",
+          "output": "output shape or next call",
+          "side_effects": [],
+          "confidence": "high"
+        }
+      ],
+      "final_outcome": "What is returned to the caller",
+      "error_paths": [
+        {
+          "condition": "Item not found",
+          "thrown_at": "ExampleService.get (step 2)",
+          "caught_at": "Global exception filter",
+          "response": "404 Not Found"
+        }
+      ],
+      "related_files": ["src/example-module/example.controller.ts"],
+      "known_gaps": ["did not trace error handling past global filter"]
+    }
+  },
+
+  "dependency_edges": [
+    {
+      "from": "src/orders/orders.service.ts",
+      "to": "src/payments/payment.service.ts",
+      "type": "constructor_injection",
+      "methods_used": ["charge", "refund"],
+      "confidence": "high",
+      "evidence": "Read orders.service.ts constructor at line 18"
+    }
+  ]
+}
