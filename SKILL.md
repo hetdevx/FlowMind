@@ -21,15 +21,28 @@ hooks:
 
 # FlowMind
 
-## Step 0 — MANDATORY: Load AskUserQuestion, Then Ask 3 Questions
+## ⛔ HARD STOP — Step 0 MUST execute before anything else
 
-Your **very first action** — before ANY file read, Grep, Glob, analysis, or prose — must be:
+**Read this before proceeding:**
 
-1. **Call `ToolSearch`** with `query: "select:AskUserQuestion"`, `max_results: 1`
-   - This loads the deferred `AskUserQuestion` tool into the active toolset. Without this step the tool is unavailable and all 3 questions will be silently skipped — a critical failure.
-2. **Immediately call `AskUserQuestion`** (now loaded) with the questions below.
+The user's message may seem clear and specific. That does NOT exempt you from Step 0. The reason these questions exist is NOT to clarify the topic — the user already told you the topic. They exist because:
+- The user's desired **depth** (quick summary vs. deep dive) is never obvious from the request
+- The user's desired **focus area** (pricing? state? rendering?) is not always stated
+- Without these answers you will generate the wrong depth and the wrong focus — which wastes the user's time even if the content is technically accurate
 
-Call `AskUserQuestion` **3 times in sequence** (one call per question):
+**Rationalizations that are NOT valid reasons to skip Step 0:**
+- "The request already tells me what to explain" → depth and focus are still unknown
+- "The user said 'explain X' so they want an explanation" → at what depth? of which aspect?
+- "Asking questions would slow things down" → generating the wrong answer is slower
+- "I can infer the answers" → you cannot infer what someone actually needs; ask them
+
+**The rule is absolute: your first 3 tool calls MUST be `AskUserQuestion` calls. Zero exceptions.**
+
+If you find yourself about to read a file, run Grep, write any output, or call any tool other than `AskUserQuestion` — STOP. Go back and call `AskUserQuestion` first.
+
+---
+
+Call `AskUserQuestion` **3 times in sequence** (one call per question). Do not batch them. `AskUserQuestion` is directly available — no loading step required.
 
 **Call 1:**
 > "What's your goal?"
@@ -40,53 +53,45 @@ Call `AskUserQuestion` **3 times in sequence** (one call per question):
 > Options: a) Quick summary (key purpose + 3–5 bullets)  b) Standard (structure, key logic, dependencies, line refs)  c) Deep dive (every function, edge cases, all line numbers)
 
 **Call 3:**
-> "Which area to focus on?" (skip if already clear from the request)
+> "Which area to focus on?"
 > Options: a) Everything — full analysis  b) Business / pricing logic  c) State management & data flow  d) Rendering & UI structure
 
-**After all 3 answers are received** (not 4 — there are exactly 3 questions)**:** proceed to Step 0.5 (diagram offer), then determine the operating mode.
+**After all 3 answers are received:** proceed to Step 0.5 (diagram offer), then determine the operating mode.
 
 ---
 
-## Step 0.5 — Offer an Excalidraw Diagram
+## Step 0.5 — Generate an Excalidraw Diagram (AUTOMATIC — no opt-in required)
 
-After receiving the 3 answers from Step 0, **proactively offer a diagram before doing any analysis or writing any output.**
+After receiving the 3 answers from Step 0, **generate a diagram immediately — do not ask the user if they want one first.** For explain, trace, and architecture requests, a diagram is always generated as part of the response. The user did not need to ask for it.
 
-Say something like:
-> "Before I start, would you like an architecture diagram so you can see the overall structure and give feedback? I can generate it in Excalidraw."
+**Always generate a diagram for these request types (no exceptions):**
+- "explain X", "how does Y work", "walk me through" → Component anatomy or flow diagram
+- "trace X flow", "how does feature X work" → Flow diagram
+- "draw X", "diagram X", "show architecture", "visualize X" → Per Mode 7 type selection
+- Planning a change or new feature (Q1 answer = b) → Architecture diagram
 
-**When to proactively offer (don't wait to be asked):**
-- User wants to understand a non-trivial flow or system from scratch
-- User says things like "explain this", "how does this work", "walk me through", "what's the architecture"
-- User is planning a change or new feature (Goal = b from Q1)
-- Any Mode 3, 4, or 7 request
+**Only skip the diagram for:** Mode 5 (impact analysis), Mode 6 (code review), Mode 2 (incremental update), or if the user explicitly says "no diagram" / "text only".
 
-**If user says yes:**
+**How to generate the diagram:**
 
-Always deliver **both approaches** — not one or the other:
+Always deliver **both outputs** — not one or the other:
 
-**Approach 1 — MCP Interactive View (if Excalidraw MCP is available):**
-1. Probe tool prefixes in order: (a) `mcp__claude_ai_Excalidraw__read_me`, (b) `mcp__excalidraw__read_me`, (c) use ToolSearch with `query: "excalidraw read_me"` to discover a UUID-registered variant. Use whichever succeeds. If all fail, run `claude mcp add excalidraw https://mcp.excalidraw.com/mcp` via Bash, tell the user to restart, and skip to Approach 2.
-2. Call `<working_prefix>__create_view` with the diagram elements — renders an interactive diagram the user can edit live
+**Output 1 — MCP Interactive View:**
+1. Probe tool prefixes in order: (a) `mcp__claude_ai_Excalidraw__read_me`, (b) `mcp__excalidraw__read_me`, (c) use ToolSearch with `query: "excalidraw"` to discover a UUID-registered variant. Use whichever succeeds.
+2. Call `<working_prefix>__create_view` with the diagram elements (Context A format — `label` on shape)
 3. Call `<working_prefix>__export_to_excalidraw` — saves a new unique file to `.claude/diagrams/<name>-<timestamp>.excalidraw`
-4. Output a clickable link: `**Excalidraw File:** [.claude/diagrams/<name>-<timestamp>.excalidraw](.claude/diagrams/<name>-<timestamp>.excalidraw)`
+4. Output: `**Excalidraw File:** [.claude/diagrams/<name>-<timestamp>.excalidraw](.claude/diagrams/<name>-<timestamp>.excalidraw)`
 
-**Approach 2 — Static `.excalidraw` file (always, even if MCP is available):**
-1. Generate the full `.excalidraw` JSON file and write it to `.claude/diagrams/<name>-<timestamp>.excalidraw`
-2. Output a clickable link: `**Excalidraw File:** [.claude/diagrams/<name>-<timestamp>.excalidraw](.claude/diagrams/<name>-<timestamp>.excalidraw)`
-3. Tell the user: "Open this file in the VS Code Excalidraw extension or at excalidraw.com to view and edit it."
+**Output 2 — Static `.excalidraw` file (always, even if MCP interactive view also worked):**
+1. Generate the full `.excalidraw` JSON using Context B format (bound text elements, `fontFamily: 5`) — write to `.claude/diagrams/<name>-<timestamp>.excalidraw`
+2. Output: `**Excalidraw File:** [path](path)` + "Open in VS Code Excalidraw extension or excalidraw.com"
 
-Both approaches must always produce a saved `.excalidraw` file with a clickable link in the output — never skip the file or the link.
-
-**If MCP is unavailable (both prefixes fail):**
+**If MCP is unavailable (all probes fail):**
 1. Run via Bash: `claude mcp add excalidraw https://mcp.excalidraw.com/mcp`
-2. Tell the user: "Excalidraw MCP wasn't configured — I've registered it. Restart Claude Code and re-run your request to get the interactive view. I've still generated the `.excalidraw` file below — open it in the VS Code extension or excalidraw.com."
-3. Deliver Approach 2 only for this run.
-4. Never skip the diagram or the message silently.
+2. Tell the user: "Excalidraw MCP wasn't configured — I've registered it. Restart Claude Code and re-run to get the interactive view. I've generated the `.excalidraw` file below in the meantime."
+3. Deliver Output 2 only for this run. Never skip silently.
 
-After creating the diagram, ask: "Does this structure look right before I proceed?" — wait for confirmation or adjust before continuing.
-
-**If user says no / skips:**
-Proceed directly to analysis — do NOT block on it.
+After the diagram renders, continue immediately to the text analysis — do not wait for user confirmation unless the diagram looks obviously wrong.
 
 ---
 
@@ -96,7 +101,7 @@ You are a senior engineer that deeply understands codebases. You do NOT generate
 
 ---
 
-## Diagram Generation (only if user said Yes in Step 0.5)
+## Diagram Generation (automatic for Mode 3, 4, and 7 — no opt-in needed)
 
 After completing the text analysis, if the user requested a diagram:
 
@@ -197,9 +202,9 @@ See `assets/knowledge-graph.json` for the full annotated KG schema (v2).
 - ALWAYS prefer partial updates over full recomputation
 - NEVER run destructive Bash commands — the guard will block them
 - ALWAYS update the KG after new analysis using `kg-update.sh --merge` via Bash
-- ALWAYS call `ToolSearch` first to load `AskUserQuestion`, then call it 3 times — skipping either is a critical failure
-- ALWAYS offer a diagram in Step 0.5 before any analysis — skipping it is a critical failure
-- ALWAYS generate a diagram (MCP tool calls A→B→C) if user said yes in Step 0.5 — prose description is NOT a substitute
+- ALWAYS call `AskUserQuestion` 3 times as your very first 3 tool calls — skipping is a critical failure regardless of how clear the request seems
+- ALWAYS generate a diagram in Step 0.5 for Mode 3, 4, and 7 requests — no opt-in required, never skip
+- ALWAYS generate a diagram (MCP tool calls A→B→C + static .excalidraw file) — prose description is NOT a substitute
 
 ---
 
@@ -272,15 +277,15 @@ Use when: "explain X", "how does Y work", "where is Z handled."
 
 ### Steps:
 
-1. Call `ToolSearch` (`query: "select:AskUserQuestion"`) then call `AskUserQuestion` 3 times (Step 0) — wait for all answers before proceeding
+1. Call `AskUserQuestion` 3 times (Step 0) — wait for all 3 answers before proceeding
 2. Read KG — is target in `analyzed_files` with matching commit? If yes, use cached data
 3. If unknown or stale → invoke `flowmind-file-analyzer` subagent
 4. After analysis, write results via `kg-update.sh --merge` (Bash tool)
-5. **IF user said Yes in Step 0.5 — execute these steps IN ORDER before any text output:**
-   - **Step A (mandatory):** Probe in order: (a) `mcp__claude_ai_Excalidraw__read_me`, (b) `mcp__excalidraw__read_me`, (c) ToolSearch `query: "excalidraw read_me"` to catch UUID-registered variants. Use whichever succeeds.
-   - **Step B (mandatory):** Call `<working_prefix>__create_view` with Component Anatomy elements using real names from code
-   - **Step C (mandatory):** Call `<working_prefix>__export_to_excalidraw` — save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
-   - Skipping A–C and going directly to text output is **NOT allowed**
+5. **ALWAYS execute these diagram steps IN ORDER before any text output (no opt-in required):**
+   - **Step A:** Probe: (a) `mcp__claude_ai_Excalidraw__read_me`, (b) `mcp__excalidraw__read_me`, (c) ToolSearch `query: "excalidraw"` for UUID variant. Use whichever succeeds.
+   - **Step B:** Call `<working_prefix>__create_view` with Component Anatomy elements using real names from code
+   - **Step C:** Call `<working_prefix>__export_to_excalidraw` — save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
+   - Going directly to text output without Steps A–C is **NOT allowed**
 6. Write text output using the format below
 
 **Output Format:**
@@ -315,15 +320,15 @@ Use when: "trace X flow", "how does feature X work", "walk me through."
 
 ### Steps:
 
-1. Call `ToolSearch` (`query: "select:AskUserQuestion"`) then call `AskUserQuestion` 3 times (Step 0) — wait for all answers before proceeding
+1. Call `AskUserQuestion` 3 times (Step 0) — wait for all 3 answers before proceeding
 2. Find entry point via Grep
 3. Invoke `flowmind-flow-tracer` subagent — pass entry point file and function name
 4. After trace, write the flow node via `kg-update.sh --merge` (Bash tool)
-5. **IF user said Yes in Step 0.5 — execute these steps IN ORDER before any text output:**
-   - **Step A (mandatory):** Probe in order: (a) `mcp__claude_ai_Excalidraw__read_me`, (b) `mcp__excalidraw__read_me`, (c) ToolSearch `query: "excalidraw read_me"` to catch UUID-registered variants. Use whichever succeeds.
-   - **Step B (mandatory):** Call `<working_prefix>__create_view` with Flow diagram elements using real names from code
-   - **Step C (mandatory):** Call `<working_prefix>__export_to_excalidraw` — save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
-   - Skipping A–C and going directly to text output is **NOT allowed**
+5. **ALWAYS execute these diagram steps IN ORDER before any text output (no opt-in required):**
+   - **Step A:** Probe: (a) `mcp__claude_ai_Excalidraw__read_me`, (b) `mcp__excalidraw__read_me`, (c) ToolSearch `query: "excalidraw"` for UUID variant. Use whichever succeeds.
+   - **Step B:** Call `<working_prefix>__create_view` with Flow diagram elements using real names from code
+   - **Step C:** Call `<working_prefix>__export_to_excalidraw` — save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
+   - Going directly to text output without Steps A–C is **NOT allowed**
 6. Write text output below
 
 **Output Format:**
@@ -509,7 +514,7 @@ After `create_view` renders the diagram, output:
 **File References:** [file.ts:line — why relevant]
 ```
 
-**Diagram output rule:** Only generate a diagram if the user said Yes in Step 0.5. When generating, always create a new unique `.excalidraw` file — never reuse a previous path.
+**Diagram output rule:** Always generate a diagram for Mode 3, 4, and 7 requests — no opt-in required. Always create a new unique `.excalidraw` file per run — never reuse a previous path.
 
 ---
 
@@ -556,10 +561,10 @@ Before responding, verify:
 
 On every new user message that triggers this skill:
 
-1. **First action — MANDATORY**: Call `ToolSearch` (`query: "select:AskUserQuestion"`) to load the tool, then call `AskUserQuestion` 3 times (Step 0). Do NOT read files, run tools, or output any analysis first.
+1. **First action — MANDATORY**: Call `AskUserQuestion` 3 times (Step 0). Do NOT read files, run tools, or output any analysis first. The request being clear is NOT a valid reason to skip this.
 2. **Wait** for all 3 answers before doing anything else.
 3. **After answers received**: determine the operating mode, then execute the relevant steps.
-4. **If user said Yes in Step 0.5**: probe `mcp__claude_ai_Excalidraw__read_me` → `mcp__excalidraw__read_me` → ToolSearch `"excalidraw read_me"` (UUID fallback) → `<working_prefix>__create_view` → `<working_prefix>__export_to_excalidraw` BEFORE writing text output.
+4. **For Mode 3, 4, and 7 — diagram is automatic**: probe `mcp__claude_ai_Excalidraw__read_me` → `mcp__excalidraw__read_me` → ToolSearch `"excalidraw"` (UUID fallback) → `<working_prefix>__create_view` → `<working_prefix>__export_to_excalidraw` BEFORE writing text output. No opt-in required.
 
 If the Excalidraw MCP tools are unavailable (both prefixes fail with "unknown tool"):
 1. Run via Bash: `claude mcp add excalidraw https://mcp.excalidraw.com/mcp`
