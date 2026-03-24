@@ -65,7 +65,7 @@ Say something like:
 Always deliver **both approaches** — not one or the other:
 
 **Approach 1 — MCP Interactive View (if Excalidraw MCP is available):**
-1. Probe both tool prefixes: try `mcp__claude_ai_Excalidraw__read_me`; if unknown, try `mcp__excalidraw__read_me`. Use whichever succeeds. If both fail, run `claude mcp add excalidraw https://mcp.excalidraw.com/mcp` via Bash, tell the user to restart, and skip to Approach 2.
+1. Probe tool prefixes in order: (a) `mcp__claude_ai_Excalidraw__read_me`, (b) `mcp__excalidraw__read_me`, (c) use ToolSearch with `query: "excalidraw read_me"` to discover a UUID-registered variant. Use whichever succeeds. If all fail, run `claude mcp add excalidraw https://mcp.excalidraw.com/mcp` via Bash, tell the user to restart, and skip to Approach 2.
 2. Call `<working_prefix>__create_view` with the diagram elements — renders an interactive diagram the user can edit live
 3. Call `<working_prefix>__export_to_excalidraw` — saves a new unique file to `.claude/diagrams/<name>-<timestamp>.excalidraw`
 4. Output a clickable link: `**Excalidraw File:** [.claude/diagrams/<name>-<timestamp>.excalidraw](.claude/diagrams/<name>-<timestamp>.excalidraw)`
@@ -100,7 +100,7 @@ You are a senior engineer that deeply understands codebases. You do NOT generate
 
 After completing the text analysis, if the user requested a diagram:
 
-1. Probe both prefixes: try `mcp__claude_ai_Excalidraw__read_me`; if unknown, try `mcp__excalidraw__read_me`. Use whichever succeeds.
+1. Probe in order: (a) `mcp__claude_ai_Excalidraw__read_me`, (b) `mcp__excalidraw__read_me`, (c) ToolSearch `query: "excalidraw read_me"` to catch UUID-registered variants. Use whichever succeeds.
 2. Call `<working_prefix>__create_view` with elements matching the chosen diagram type, using real names from the code you read
 3. Call `<working_prefix>__export_to_excalidraw` — save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
 4. Output: `**Excalidraw File:** [path]`
@@ -277,7 +277,7 @@ Use when: "explain X", "how does Y work", "where is Z handled."
 3. If unknown or stale → invoke `flowmind-file-analyzer` subagent
 4. After analysis, write results via `kg-update.sh --merge` (Bash tool)
 5. **IF user said Yes in Step 0.5 — execute these steps IN ORDER before any text output:**
-   - **Step A (mandatory):** Probe both prefixes: try `mcp__claude_ai_Excalidraw__read_me`; if unknown, try `mcp__excalidraw__read_me`. Use whichever succeeds.
+   - **Step A (mandatory):** Probe in order: (a) `mcp__claude_ai_Excalidraw__read_me`, (b) `mcp__excalidraw__read_me`, (c) ToolSearch `query: "excalidraw read_me"` to catch UUID-registered variants. Use whichever succeeds.
    - **Step B (mandatory):** Call `<working_prefix>__create_view` with Component Anatomy elements using real names from code
    - **Step C (mandatory):** Call `<working_prefix>__export_to_excalidraw` — save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
    - Skipping A–C and going directly to text output is **NOT allowed**
@@ -320,7 +320,7 @@ Use when: "trace X flow", "how does feature X work", "walk me through."
 3. Invoke `flowmind-flow-tracer` subagent — pass entry point file and function name
 4. After trace, write the flow node via `kg-update.sh --merge` (Bash tool)
 5. **IF user said Yes in Step 0.5 — execute these steps IN ORDER before any text output:**
-   - **Step A (mandatory):** Probe both prefixes: try `mcp__claude_ai_Excalidraw__read_me`; if unknown, try `mcp__excalidraw__read_me`. Use whichever succeeds.
+   - **Step A (mandatory):** Probe in order: (a) `mcp__claude_ai_Excalidraw__read_me`, (b) `mcp__excalidraw__read_me`, (c) ToolSearch `query: "excalidraw read_me"` to catch UUID-registered variants. Use whichever succeeds.
    - **Step B (mandatory):** Call `<working_prefix>__create_view` with Flow diagram elements using real names from code
    - **Step C (mandatory):** Call `<working_prefix>__export_to_excalidraw` — save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
    - Skipping A–C and going directly to text output is **NOT allowed**
@@ -437,10 +437,12 @@ Diagrams are rendered as **visual images** using the Excalidraw MCP tool — not
    - Flow or sequence diagram → `flowmind-flow-tracer` (pass entry point + function name)
    - Architecture diagram → `flowmind-folder-analyzer` for each top-level folder not already in KG
    - Dependency diagram → `flowmind-dependency-mapper` (pass target + direction)
-4. **Check Excalidraw MCP availability — probe BOTH possible tool name prefixes:**
-   - Try calling `mcp__claude_ai_Excalidraw__read_me` (registered as `claude_ai_Excalidraw`)
-   - If that fails, try `mcp__excalidraw__read_me` (registered as `excalidraw`)
-   - If BOTH fail (unknown tool error):
+4. **Check Excalidraw MCP availability — probe ALL known tool name patterns:**
+   - Try `mcp__claude_ai_Excalidraw__read_me` (registered as `claude_ai_Excalidraw`)
+   - If unknown, try `mcp__excalidraw__read_me` (registered as `excalidraw`)
+   - If unknown, use ToolSearch with `query: "excalidraw read_me"` to discover the actual tool name dynamically — the MCP server may have been registered with a UUID or custom key
+   - If ToolSearch returns a match, extract the prefix from the result and use it
+   - If ALL attempts fail (no match from ToolSearch either):
      1. **Auto-register via Bash:** run `claude mcp add excalidraw https://mcp.excalidraw.com/mcp`
      2. Tell the user: "Excalidraw MCP wasn't configured — I've registered it now. Please restart Claude Code and re-run your request. The diagram will generate automatically on the next run."
      3. Do **NOT** skip silently — always inform the user with the restart instruction.
@@ -557,7 +559,7 @@ On every new user message that triggers this skill:
 1. **First action — MANDATORY**: Call `ToolSearch` (`query: "select:AskUserQuestion"`) to load the tool, then call `AskUserQuestion` 3 times (Step 0). Do NOT read files, run tools, or output any analysis first.
 2. **Wait** for all 3 answers before doing anything else.
 3. **After answers received**: determine the operating mode, then execute the relevant steps.
-4. **If user said Yes in Step 0.5**: probe `mcp__claude_ai_Excalidraw__read_me` / `mcp__excalidraw__read_me` → `<working_prefix>__create_view` → `<working_prefix>__export_to_excalidraw` BEFORE writing text output.
+4. **If user said Yes in Step 0.5**: probe `mcp__claude_ai_Excalidraw__read_me` → `mcp__excalidraw__read_me` → ToolSearch `"excalidraw read_me"` (UUID fallback) → `<working_prefix>__create_view` → `<working_prefix>__export_to_excalidraw` BEFORE writing text output.
 
 If the Excalidraw MCP tools are unavailable (both prefixes fail with "unknown tool"):
 1. Run via Bash: `claude mcp add excalidraw https://mcp.excalidraw.com/mcp`
