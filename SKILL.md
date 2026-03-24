@@ -23,6 +23,61 @@ hooks:
 
 You are a senior engineer that deeply understands codebases. You do NOT generate generic documentation. You reason from real files, real functions, and real paths.
 
+## MANDATORY FIRST ACTION — Diagram Before Text (NO EXCEPTIONS)
+
+**Before writing a single word of analysis, you MUST generate a diagram. This is step zero — it runs before any reading, analysis, or text output.**
+
+Follow these steps in order every single time:
+
+1. **Call `mcp__claude_ai_Excalidraw__read_me`** (once per session; skip only if you already called it in this exact conversation)
+2. **Choose the diagram type** based on the request (see default per mode below), then build the element JSON
+3. **Call `mcp__claude_ai_Excalidraw__create_view`** — pass the JSON array of elements to render the live diagram
+4. **Call `mcp__claude_ai_Excalidraw__export_to_excalidraw`** — save to `.claude/diagrams/<name>-<timestamp>.excalidraw` (always a new unique path)
+5. **Output:** `**Excalidraw File:** [.claude/diagrams/<name>-<timestamp>.excalidraw]`
+6. **Then write your text analysis** — never before step 5
+
+### Default diagram type per mode
+
+| Mode | Default diagram | Node colors |
+|---|---|---|
+| Mode 3 (explain/query) | **Component Anatomy**: Props/Entry → State & Hooks → Sub-components → Output/Events | blue → purple → purple → green |
+| Mode 4 (flow trace) | **Flow diagram**: Entry point → each major step → final outcome | blue → purple → green |
+| Mode 5 (impact) | **Dependency diagram**: changed entity → direct callers → indirect callers | orange → purple → purple |
+| Mode 6 (review) | **Flow diagram** of changed paths only | same as Mode 4 |
+
+### Minimal `create_view` template (copy and adapt)
+
+```json
+[
+  { "type": "cameraUpdate", "x": 0, "y": 0, "zoom": 1, "width": 800, "height": 600 },
+  { "type": "rectangle", "id": "r1", "x": 80,  "y": 120, "width": 220, "height": 60,
+    "backgroundColor": "#a5d8ff", "fillStyle": "solid", "strokeColor": "#4a9eed",
+    "strokeWidth": 2, "roughness": 1, "opacity": 100, "roundness": { "type": 3 },
+    "label": { "text": "Entry / Props", "fontSize": 18, "fontFamily": 5 } },
+  { "type": "rectangle", "id": "r2", "x": 380, "y": 120, "width": 220, "height": 60,
+    "backgroundColor": "#d0bfff", "fillStyle": "solid", "strokeColor": "#845ef7",
+    "strokeWidth": 2, "roughness": 1, "opacity": 100, "roundness": { "type": 3 },
+    "label": { "text": "Component Logic", "fontSize": 18, "fontFamily": 5 } },
+  { "type": "arrow", "id": "a1", "x": 300, "y": 150, "width": 80, "height": 0,
+    "strokeColor": "#495057", "strokeWidth": 2, "roughness": 1, "opacity": 100,
+    "startBinding": { "elementId": "r1", "gap": 1, "focus": 0 },
+    "endBinding":   { "elementId": "r2", "gap": 1, "focus": 0 } }
+]
+```
+
+Replace `"Entry / Props"` and `"Component Logic"` with real names from the code. Add more `rectangle` + `arrow` pairs as needed. Always use `"fontFamily": 5`.
+
+### If Excalidraw MCP is unavailable
+
+1. Invoke the `update-config` skill to add the Excalidraw MCP server
+2. Retry the failed call exactly once
+3. If it still fails, output **only**:
+   > ⚠️ Diagram generation failed — Excalidraw MCP unavailable. Install via `update-config` skill.
+
+   Then **STOP**. Do not output any analysis text. A response with text but no diagram is always incomplete.
+
+---
+
 ## Hook Scope — Important
 
 Three hooks run automatically:
@@ -128,28 +183,6 @@ Reference `assets/knowledge-graph.json` for the full annotated schema.
 
 ---
 
-## MANDATORY FIRST ACTION — Diagram Before Text (NO EXCEPTIONS)
-
-**Before writing a single word of analysis, you MUST generate a diagram. This is step zero.**
-
-Follow these steps in order every single time:
-
-1. **Call `mcp__claude_ai_Excalidraw__read_me`** (once per session, skip if already called this session)
-2. **Plan elements** — based on the request, decide which nodes/arrows represent the code being explained
-3. **Call `mcp__claude_ai_Excalidraw__create_view`** — render the diagram as a live visual
-4. **Call `mcp__claude_ai_Excalidraw__export_to_excalidraw`** — save to `.claude/diagrams/<name>-<timestamp>.excalidraw` (always a new unique file)
-5. **Output the diagram link** — `**Excalidraw File:** [path to file]`
-6. **Then write your text analysis** below the diagram link
-
-**If any Excalidraw tool call returns an error or "tool not found":**
-- Invoke the `update-config` skill to add the Excalidraw MCP server
-- Then retry the failed call
-- Do NOT skip the diagram and proceed to text output
-
-**This is non-negotiable.** A response with only text and no rendered diagram is always incomplete.
-
----
-
 ## Core Rules (NEVER violate these)
 
 - NEVER hallucinate file paths, function names, or architecture
@@ -234,11 +267,14 @@ Use when: files changed, commit diff available.
 
 Use when: "explain X", "how does Y work", "where is Z handled."
 
+**Diagram for Mode 3 (mandatory):** Draw a **Component Anatomy** diagram before writing any text. Structure: `Props/Entry` (blue `#a5d8ff`) → `State & Hooks` (purple `#d0bfff`) → `Sub-components` (purple `#d0bfff`) → `Output/Events` (green `#b2f2bb`). Replace each label with the real variable, hook, or component name from the code. Add arrows between nodes to show data flow.
+
 ### Steps:
 
-1. Read KG — is target in `analyzed_files` with matching commit? If yes, use cached data
-2. If unknown or stale → invoke `flowmind-file-analyzer` subagent
-3. After analysis, write results via `kg-update.sh --merge` (Bash tool)
+1. **Generate the Component Anatomy diagram first** (see MANDATORY FIRST ACTION at the top)
+2. Read KG — is target in `analyzed_files` with matching commit? If yes, use cached data
+3. If unknown or stale → invoke `flowmind-file-analyzer` subagent
+4. After analysis, write results via `kg-update.sh --merge` (Bash tool)
 
 **Output Format:**
 ```
@@ -382,7 +418,7 @@ Diagrams are rendered as **visual images** using the Excalidraw MCP tool — not
 ### Steps:
 
 1. **Read KG** — check `flows` (for flow/sequence) and `folders` (for architecture) for existing data
-2. **If data present and confidence ≥ "medium"** → build diagram directly from KG; skip subagent invocation
+2. **If data present and confidence ≥ "medium"** → build diagram directly from KG; skip **subagent** invocation only — **diagram generation via Excalidraw MCP is still required**
 3. **If data missing or stale**, invoke the minimum subagent needed:
    - Flow or sequence diagram → `flowmind-flow-tracer` (pass entry point + function name)
    - Architecture diagram → `flowmind-folder-analyzer` for each top-level folder not already in KG
