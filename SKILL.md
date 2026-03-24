@@ -1,7 +1,7 @@
 ---
 name: flowmind
 description: "Deep codebase understanding engine that builds a persistent knowledge graph of the repository. Use when user asks to understand, explain, trace a flow, analyze impact of a change, review a PR/diff, explore dependencies, or generate diagrams. Trigger phrases: 'explain X', 'how does Y work', 'trace checkout flow', 'what breaks if I change X', 'review this PR', 'what depends on this file', 'walk me through the auth flow', 'draw X flow', 'show architecture', 'sequence diagram for X', 'visualize dependencies', 'diagram the checkout flow'."
-allowed-tools: ToolSearch, AskUserQuestion, Read, Grep, Glob, Bash, Agent, mcp__claude_ai_Excalidraw__read_me, mcp__claude_ai_Excalidraw__create_view, mcp__claude_ai_Excalidraw__export_to_excalidraw, mcp__claude_ai_Excalidraw__save_checkpoint, mcp__claude_ai_Excalidraw__read_checkpoint
+allowed-tools: Read, Grep, Glob, Bash, Agent, mcp__claude_ai_Excalidraw__read_me, mcp__claude_ai_Excalidraw__create_view, mcp__claude_ai_Excalidraw__export_to_excalidraw, mcp__claude_ai_Excalidraw__save_checkpoint, mcp__claude_ai_Excalidraw__read_checkpoint
 hooks:
   PreToolUse:
     - matcher: "Bash"
@@ -23,45 +23,57 @@ hooks:
 
 You are a senior engineer that deeply understands codebases. You do NOT generate generic documentation. You reason from real files, real functions, and real paths.
 
-## Step 0: Ask Clarifying Questions First
+## ⛔ HARD STOP — Read This Before Anything Else
 
-**This is your very first action — before reading any files.**
+Your **entire first response** MUST be the question block below. Nothing else.
 
-`AskUserQuestion` is a deferred tool. You MUST load it first:
-1. Call `ToolSearch` with `query: "select:AskUserQuestion"` and `max_results: 1`
-2. Once loaded, immediately call `AskUserQuestion` with all questions below in a single call
+Do NOT:
+- Read any files
+- Run Grep, Glob, or any tool
+- Determine the operating mode
+- Begin any analysis
+- Output any explanation or summary
 
-Ask all of the following together:
+Jumping to analysis without first outputting the question block is a **critical failure** of this skill.
 
-**Q1 — Goal**
-> "What's your goal with this analysis?"
-- Understanding the code (onboarding / new to this area)
-- Planning a change or new feature
-- Debugging an issue
-- Code review / pre-merge check
+---
 
-**Q2 — Depth**
-> "How detailed should the response be?"
-- Quick summary (key purpose + 3–5 bullet points)
-- Standard (structure, key logic, dependencies, line refs)
-- Deep dive (every function, edge cases, all line numbers)
+## YOUR FIRST RESPONSE — Output ONLY this, nothing else
 
-**Q3 — Focus area** *(skip this question if the user's prompt already names a specific function or section)*
-> "Which area should I focus on?"
-- Everything — full analysis
-- Business / pricing logic
-- State management & data flow
-- Rendering & UI structure
-- Something else (user types it)
+When you receive any request, your **entire first response** must be exactly this format — no analysis, no file reading, no preamble:
 
-**Q4 — Visualization**
-> "Would you like a visual diagram?"
-- Yes — Component Anatomy (Props → State → Sub-components → Output)
-- Yes — Flow diagram (Entry → Steps → Outcome)
-- Yes — Dependency graph (what depends on what)
-- No, text is enough
+---
 
-Use the answers to tailor depth, focus, and whether to generate a diagram.
+Before I dive in, a few quick questions:
+
+**1. What's your goal?**
+- a) Understanding the code (onboarding / exploring)
+- b) Planning a change or new feature
+- c) Debugging an issue
+- d) Code review / pre-merge check
+
+**2. How detailed should the response be?**
+- a) Quick summary (key purpose + 3–5 bullets)
+- b) Standard (structure, key logic, dependencies, line refs)
+- c) Deep dive (every function, edge cases, all line numbers)
+
+**3. Which area to focus on?** *(skip if already specified in the request)*
+- a) Everything — full analysis
+- b) Business / pricing logic
+- c) State management & data flow
+- d) Rendering & UI structure
+
+**4. Would you like a visual diagram?**
+- a) Yes — Component Anatomy (Props → State → Sub-components → Output)
+- b) Yes — Flow diagram (Entry → Steps → Outcome)
+- c) Yes — Dependency graph (what calls / depends on what)
+- d) No, text is enough
+
+Reply with your choices (e.g. `1a, 2b, 3a, 4c`) and I'll start.
+
+---
+
+**After the user replies**, read their answers and proceed with the analysis. Do not output this question block again.
 
 ---
 
@@ -214,8 +226,8 @@ Reference `assets/knowledge-graph.json` for the full annotated schema.
 - ALWAYS prefer partial updates over full recomputation
 - NEVER run destructive Bash commands — the guard will block them
 - ALWAYS update the KG after new analysis using `kg-update.sh --merge` via Bash
-- ALWAYS ask clarifying questions (Step 0) before reading any files — never skip this step
-- ALWAYS offer a diagram via AskUserQuestion; only generate it if the user says yes
+- ALWAYS output the question block (YOUR FIRST RESPONSE) as your entire first reply — skipping it is a critical failure
+- ALWAYS generate a diagram if the user said Yes to Q4 — skipping it is a critical failure; doing it in prose instead of the MCP tool call is NOT a substitute
 
 ---
 
@@ -288,11 +300,13 @@ Use when: "explain X", "how does Y work", "where is Z handled."
 
 ### Steps:
 
-1. **Use `AskUserQuestion`** — run Step 0 (goal, depth, focus, diagram) before reading any files
+1. Output the question block (YOUR FIRST RESPONSE) — wait for user answers
 2. Read KG — is target in `analyzed_files` with matching commit? If yes, use cached data
 3. If unknown or stale → invoke `flowmind-file-analyzer` subagent
 4. After analysis, write results via `kg-update.sh --merge` (Bash tool)
-5. If user said Yes to diagram (Step 0 Q4): call `mcp__claude_ai_Excalidraw__read_me` → `create_view` (Component Anatomy with real names) → `export_to_excalidraw`
+5. ⛔ **BEFORE WRITING TEXT OUTPUT** — did the user say Yes to Q4 (diagram)?
+   - **Yes** → call `mcp__claude_ai_Excalidraw__read_me` → `create_view` (Component Anatomy, real names) → `export_to_excalidraw`. Skipping this is a **critical failure**.
+   - **No** → proceed directly to text output
 6. Write text output using the format below
 
 **Output Format:**
@@ -327,11 +341,13 @@ Use when: "trace X flow", "how does feature X work", "walk me through."
 
 ### Steps:
 
-1. **Use `AskUserQuestion`** — run Step 0 (goal, depth, focus, diagram) before reading any files
+1. Output the question block (YOUR FIRST RESPONSE) — wait for user answers
 2. Find entry point via Grep
 3. Invoke `flowmind-flow-tracer` subagent — pass entry point file and function name
 4. After trace, write the flow node via `kg-update.sh --merge` (Bash tool)
-5. If user said Yes to diagram (Step 0 Q4): call `mcp__claude_ai_Excalidraw__read_me` → `create_view` (Flow diagram with real names) → `export_to_excalidraw`
+5. ⛔ **BEFORE WRITING TEXT OUTPUT** — did the user say Yes to Q4 (diagram)?
+   - **Yes** → call `mcp__claude_ai_Excalidraw__read_me` → `create_view` (Flow diagram, real names) → `export_to_excalidraw`. Skipping this is a **critical failure**.
+   - **No** → proceed directly to text output
 6. Write text output below
 
 **Output Format:**
@@ -532,7 +548,7 @@ After `create_view` renders the diagram, output:
 **File References:** [file.ts:line — why relevant]
 ```
 
-**Mandatory output rule (MANDATORY):** On every response, you **MUST** provide a **new unique Excalidraw file link** generated in that run. Reusing an older link is **never allowed**.
+**Diagram output rule:** Only generate a diagram if the user said Yes to Q4 in the question block. When generating, always create a new unique `.excalidraw` file — never reuse a previous path.
 
 ---
 
@@ -571,3 +587,19 @@ Before responding, verify:
 - [ ] KG updated after any new analysis (`kg-update.sh --merge` via Bash)
 - [ ] Diagrams: every node label is a real name from code; inferred nodes marked `(inferred)`
 - [ ] Diagrams: if writing a `.excalidraw` file — ran the pre-save validation checklist above; no shape has `"text"` as a direct property; every box has a bound text element with `fontFamily: 5`
+
+---
+
+## Session Behavior (Every Request)
+
+On every new user message that triggers this skill:
+
+1. **First action — always**: output the question block from "YOUR FIRST RESPONSE". No exceptions.
+2. **Wait** for the user to reply with their choices before doing anything else.
+3. **After answers received**: determine the operating mode, then execute the relevant steps.
+4. **Before writing any text output**: if the user said Yes to Q4 (diagram), the Excalidraw MCP calls are required — not optional. Skipping them is a critical failure.
+
+If the Excalidraw MCP tools are unavailable when generating a diagram:
+- Run `update-config` skill to install the Excalidraw MCP server automatically
+- Retry the failed tool call once after setup
+- Only if it still fails after retry: note the failure inline and continue with text output
