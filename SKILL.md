@@ -1,7 +1,7 @@
 ---
 name: flowmind
 description: "Deep codebase understanding engine that builds a persistent knowledge graph of the repository. Use when user asks to understand, explain, trace a flow, analyze impact of a change, review a PR/diff, explore dependencies, or generate diagrams. Trigger phrases: 'explain X', 'how does Y work', 'trace checkout flow', 'what breaks if I change X', 'review this PR', 'what depends on this file', 'walk me through the auth flow', 'draw X flow', 'show architecture', 'sequence diagram for X', 'visualize dependencies', 'diagram the checkout flow'."
-allowed-tools: Read, Grep, Glob, Bash, Agent, mcp__claude_ai_Excalidraw__read_me, mcp__claude_ai_Excalidraw__create_view, mcp__claude_ai_Excalidraw__export_to_excalidraw, mcp__claude_ai_Excalidraw__save_checkpoint, mcp__claude_ai_Excalidraw__read_checkpoint
+allowed-tools: AskUserQuestion, Read, Grep, Glob, Bash, Agent, mcp__claude_ai_Excalidraw__read_me, mcp__claude_ai_Excalidraw__create_view, mcp__claude_ai_Excalidraw__export_to_excalidraw, mcp__claude_ai_Excalidraw__save_checkpoint, mcp__claude_ai_Excalidraw__read_checkpoint
 hooks:
   PreToolUse:
     - matcher: "Bash"
@@ -225,8 +225,6 @@ Reference `assets/knowledge-graph.json` for the full annotated schema.
 | PR link / diff / "review this" | Mode 6: Code Review |
 | "draw X", "diagram X", "show architecture", "sequence diagram for X", "visualize X" | Mode 7: Diagram Generation |
 
-**Mandatory execution rule:** Mode 7 (Diagram Generation) is a required companion mode for every request. Even when the primary request maps to Modes 1–6, you MUST still generate and return a visual diagram.
-
 ---
 
 ## Mode 1: Codebase Ingestion (Initial Scan)
@@ -282,22 +280,17 @@ Use when: files changed, commit diff available.
 
 Use when: "explain X", "how does Y work", "where is Z handled."
 
-**Diagram for Mode 3:** **Component Anatomy** — `Props/Entry` (blue) → `State & Hooks` (purple) → `Sub-components` (purple) → `Output/Events` (green). Label every node with the real variable/hook/component name from the code.
-
 ### Steps:
 
-1. Call `mcp__claude_ai_Excalidraw__read_me` — **this must be your first tool call** (see MANDATORY FIRST ACTION)
+1. **Use `AskUserQuestion`** — run Step 0 (goal, depth, focus, diagram) before reading any files
 2. Read KG — is target in `analyzed_files` with matching commit? If yes, use cached data
 3. If unknown or stale → invoke `flowmind-file-analyzer` subagent
 4. After analysis, write results via `kg-update.sh --merge` (Bash tool)
-5. **Call `mcp__claude_ai_Excalidraw__create_view`** with Component Anatomy elements (real names from step 2–3)
-6. **Call `mcp__claude_ai_Excalidraw__export_to_excalidraw`** → save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
-7. Write text output using the format below — **start with the Excalidraw File line**
+5. If user said Yes to diagram (Step 0 Q4): call `mcp__claude_ai_Excalidraw__read_me` → `create_view` (Component Anatomy with real names) → `export_to_excalidraw`
+6. Write text output using the format below
 
 **Output Format:**
 ```
-**Excalidraw File:** [.claude/diagrams/<name>-<timestamp>.excalidraw]
-
 ## [Topic Name]
 
 **Summary:** 1–2 sentence plain-English summary
@@ -328,18 +321,15 @@ Use when: "trace X flow", "how does feature X work", "walk me through."
 
 ### Steps:
 
-1. Call `mcp__claude_ai_Excalidraw__read_me` — **first tool call** (see MANDATORY FIRST ACTION)
+1. **Use `AskUserQuestion`** — run Step 0 (goal, depth, focus, diagram) before reading any files
 2. Find entry point via Grep
 3. Invoke `flowmind-flow-tracer` subagent — pass entry point file and function name
 4. After trace, write the flow node via `kg-update.sh --merge` (Bash tool)
-5. **Call `mcp__claude_ai_Excalidraw__create_view`** with Flow diagram elements (entry → steps → outcome)
-6. **Call `mcp__claude_ai_Excalidraw__export_to_excalidraw`** → save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
-7. Write text output below — **start with the Excalidraw File line**
+5. If user said Yes to diagram (Step 0 Q4): call `mcp__claude_ai_Excalidraw__read_me` → `create_view` (Flow diagram with real names) → `export_to_excalidraw`
+6. Write text output below
 
 **Output Format:**
 ```
-**Excalidraw File:** [.claude/diagrams/<name>-<timestamp>.excalidraw]
-
 ## Flow: [Name]
 
 **Entry Point:** POST /api/orders → OrderController.create() [orders.controller.ts:34]
@@ -537,35 +527,6 @@ After `create_view` renders the diagram, output:
 ```
 
 **Mandatory output rule (MANDATORY):** On every response, you **MUST** provide a **new unique Excalidraw file link** generated in that run. Reusing an older link is **never allowed**.
-
-### Non-negotiable enforcement
-
-For every request, all three conditions are compulsory:
-
-1. Excalidraw MCP setup is forced: if missing, auto-install/enable, then retry.
-2. `.excalidraw` file creation is forced: always create a new unique file.
-3. Link output is forced: always return the new unique link for that run.
-
-If any one of the three is missing, the task is incomplete.
-
-### Final Response Contract (ALL MODES, MANDATORY)
-
-After completing the primary mode output (Modes 1–6 or 7), you MUST append this block in every response:
-
-```
-**Diagram:** [Name]
-**Type:** [Flow / Sequence / Architecture / Dependency]
-**Grounded from:** [KG keys or files read]
-**What this shows:** [1–2 sentence explanation]
-**Excalidraw File:** [clickable repo path to the NEW unique `.excalidraw` file created in this run]
-**Known Gaps:** [any (inferred) nodes, unread files, or "none"]
-**File References:** [file.ts:line — why relevant]
-```
-
-Hard requirements for this block:
-- It MUST appear in every response, even when user did not ask for a diagram
-- The Excalidraw file path MUST be newly created in this run (never reused)
-- The link MUST point to that new file created in this run
 
 ---
 
