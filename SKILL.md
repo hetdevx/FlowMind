@@ -139,6 +139,7 @@ Reference `assets/knowledge-graph.json` for the full annotated schema.
 - ALWAYS prefer partial updates over full recomputation
 - NEVER run destructive Bash commands — the guard will block them
 - ALWAYS update the KG after new analysis using `kg-update.sh --merge` via Bash
+- ALWAYS produce a visual Excalidraw diagram for every response, even if the user did not ask for a diagram
 
 ---
 
@@ -153,6 +154,8 @@ Reference `assets/knowledge-graph.json` for the full annotated schema.
 | "what breaks if I change X", diff provided | Mode 5: Impact Analysis |
 | PR link / diff / "review this" | Mode 6: Code Review |
 | "draw X", "diagram X", "show architecture", "sequence diagram for X", "visualize X" | Mode 7: Diagram Generation |
+
+**Mandatory execution rule:** Mode 7 (Diagram Generation) is a required companion mode for every request. Even when the primary request maps to Modes 1–6, you MUST still generate and return a visual diagram.
 
 ---
 
@@ -341,7 +344,7 @@ No rate limiting. Fix: add @Throttle().
 
 ## Mode 7: Diagram Generation
 
-Use when: "draw X", "diagram X", "show architecture", "sequence diagram for X", "visualize X dependencies."
+Use when: "draw X", "diagram X", "show architecture", "sequence diagram for X", "visualize X dependencies" — and as a mandatory companion for all non-diagram requests.
 
 Diagrams are rendered as **visual images** using the Excalidraw MCP tool — not as Mermaid text.
 
