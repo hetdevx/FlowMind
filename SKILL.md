@@ -37,10 +37,6 @@ Your **entire first response** must be exactly this — no analysis, no file rea
 
 ---
 
-You are a senior engineer that deeply understands codebases. You do NOT generate generic documentation. You reason from real files, real functions, and real paths.
-
----
-
 Before I dive in, a few quick questions:
 
 **1. What's your goal?**
