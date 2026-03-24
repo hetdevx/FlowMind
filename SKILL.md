@@ -1,7 +1,7 @@
 ---
 name: flowmind
 description: "Deep codebase understanding engine that builds a persistent knowledge graph of the repository. Use when user asks to understand, explain, trace a flow, analyze impact of a change, review a PR/diff, explore dependencies, or generate diagrams. Trigger phrases: 'explain X', 'how does Y work', 'trace checkout flow', 'what breaks if I change X', 'review this PR', 'what depends on this file', 'walk me through the auth flow', 'draw X flow', 'show architecture', 'sequence diagram for X', 'visualize dependencies', 'diagram the checkout flow'."
-allowed-tools: Read, Grep, Glob, Bash, Agent, mcp__claude_ai_Excalidraw__read_me, mcp__claude_ai_Excalidraw__create_view, mcp__claude_ai_Excalidraw__export_to_excalidraw, mcp__claude_ai_Excalidraw__save_checkpoint, mcp__claude_ai_Excalidraw__read_checkpoint
+allowed-tools: AskUserQuestion, Read, Grep, Glob, Bash, Agent, mcp__claude_ai_Excalidraw__read_me, mcp__claude_ai_Excalidraw__create_view, mcp__claude_ai_Excalidraw__export_to_excalidraw, mcp__claude_ai_Excalidraw__save_checkpoint, mcp__claude_ai_Excalidraw__read_checkpoint
 hooks:
   PreToolUse:
     - matcher: "Bash"
@@ -21,52 +21,31 @@ hooks:
 
 # FlowMind
 
-## ⛔ HARD STOP — DO THIS FIRST, BEFORE ANYTHING ELSE
+## Step 0 — MANDATORY: Call AskUserQuestion Before Anything Else
 
-**IMMEDIATELY output the question block below. Do NOT read files, run tools, or begin analysis first.**
+Your **very first action** must be to call `AskUserQuestion` with the questions below. Do NOT read any file, run Grep/Glob, call any tool, or output any analysis before doing this.
 
-You MUST output ONLY the question block as your entire first response. No preamble. No analysis. No tool calls. Just the questions.
+Call `AskUserQuestion` **4 times in sequence** (one call per question):
 
-Skipping this step or jumping to analysis is a **critical failure** of this skill.
+**Call 1:**
+> "What's your goal?"
+> Options: a) Understanding the code (onboarding/exploring)  b) Planning a change or new feature  c) Debugging an issue  d) Code review / pre-merge check
 
----
+**Call 2:**
+> "How detailed should the response be?"
+> Options: a) Quick summary (key purpose + 3–5 bullets)  b) Standard (structure, key logic, dependencies, line refs)  c) Deep dive (every function, edge cases, all line numbers)
 
-## YOUR FIRST RESPONSE — IMMEDIATELY output ONLY this, nothing else
+**Call 3:**
+> "Which area to focus on?" (skip if already clear from the request)
+> Options: a) Everything — full analysis  b) Business / pricing logic  c) State management & data flow  d) Rendering & UI structure
 
-Your **entire first response** must be exactly this — no analysis, no file reading, no preamble, no tool calls:
+**Call 4:**
+> "Would you like a visual diagram?"
+> Options: a) Yes — Component Anatomy (Props → State → Sub-components → Output)  b) Yes — Flow diagram (Entry → Steps → Outcome)  c) Yes — Dependency graph (what calls / depends on what)  d) No, text is enough
 
----
-
-Before I dive in, a few quick questions:
-
-**1. What's your goal?**
-- a) Understanding the code (onboarding / exploring)
-- b) Planning a change or new feature
-- c) Debugging an issue
-- d) Code review / pre-merge check
-
-**2. How detailed should the response be?**
-- a) Quick summary (key purpose + 3–5 bullets)
-- b) Standard (structure, key logic, dependencies, line refs)
-- c) Deep dive (every function, edge cases, all line numbers)
-
-**3. Which area to focus on?** *(skip if already specified in the request)*
-- a) Everything — full analysis
-- b) Business / pricing logic
-- c) State management & data flow
-- d) Rendering & UI structure
-
-**4. Would you like a visual diagram?**
-- a) Yes — Component Anatomy (Props → State → Sub-components → Output)
-- b) Yes — Flow diagram (Entry → Steps → Outcome)
-- c) Yes — Dependency graph (what calls / depends on what)
-- d) No, text is enough
-
-Reply with your choices (e.g. `1a, 2b, 3a, 4c`) and I'll start.
-
----
-
-**After the user replies**, read their answers and proceed with the analysis. Do not output this question block again.
+**After all 4 answers are received:** determine the operating mode and proceed.
+- If the user answered **4a, 4b, or 4c** → diagram generation via Excalidraw MCP calls is **MANDATORY** before writing any text output.
+- If the user answered **4d** → proceed to text output only.
 
 ---
 
@@ -85,27 +64,7 @@ After completing the text analysis, if the user requested a diagram:
 3. Call `mcp__claude_ai_Excalidraw__export_to_excalidraw` — save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
 4. Output: `**Excalidraw File:** [path]`
 
-### Diagram element template (copy and adapt for `create_view`)
-
-```json
-[
-  { "type": "cameraUpdate", "x": 0, "y": 0, "zoom": 1, "width": 800, "height": 600 },
-  { "type": "rectangle", "id": "r1", "x": 80,  "y": 120, "width": 220, "height": 60,
-    "backgroundColor": "#a5d8ff", "fillStyle": "solid", "strokeColor": "#4a9eed",
-    "strokeWidth": 2, "roughness": 1, "opacity": 100, "roundness": { "type": 3 },
-    "label": { "text": "Entry / Props", "fontSize": 18, "fontFamily": 5 } },
-  { "type": "rectangle", "id": "r2", "x": 380, "y": 120, "width": 220, "height": 60,
-    "backgroundColor": "#d0bfff", "fillStyle": "solid", "strokeColor": "#845ef7",
-    "strokeWidth": 2, "roughness": 1, "opacity": 100, "roundness": { "type": 3 },
-    "label": { "text": "Component Logic", "fontSize": 18, "fontFamily": 5 } },
-  { "type": "arrow", "id": "a1", "x": 300, "y": 150, "width": 80, "height": 0,
-    "strokeColor": "#495057", "strokeWidth": 2, "roughness": 1, "opacity": 100,
-    "startBinding": { "elementId": "r1", "gap": 1, "focus": 0 },
-    "endBinding":   { "elementId": "r2", "gap": 1, "focus": 0 } }
-]
-```
-
-Replace labels with real names from code. Add more `rectangle` + `arrow` pairs as needed. Always use `"fontFamily": 5`. Color palette: blue `#a5d8ff` = entry/props, purple `#d0bfff` = logic/hooks, green `#b2f2bb` = output, orange `#ffd8a8` = external.
+See `reference/excalidraw-template.md` for the element template, color palette, and rendering rules.
 
 ---
 
@@ -178,35 +137,7 @@ All file paths in the KG **must be repo-relative normalized form** — not absol
 
 `kg-update.sh` automatically normalizes paths in `files`, `folders`, and `analyzed_files` patch keys. Use the same format in your queries and flow step references.
 
-### KG schema (v2) — required structure
-
-```json
-{
-  "schema_version": "2",
-  "created_at": "ISO timestamp",
-  "last_updated": "ISO timestamp",
-  "last_session_start": "ISO timestamp",
-  "repo_root": "/absolute/path/to/project",
-  "git": { "branch": "main", "commit": "abc1234" },
-  "session_reads": [],
-  "last_session_reads": [],
-  "analyzed_files": {
-    "src/auth/auth.service.ts": {
-      "analyzed_at": "ISO timestamp",
-      "commit": "abc1234",
-      "by_agent": "flowmind-file-analyzer",
-      "confidence": "high",
-      "known_gaps": []
-    }
-  },
-  "folders": {},
-  "files": {},
-  "flows": {},
-  "dependency_edges": []
-}
-```
-
-Reference `assets/knowledge-graph.json` for the full annotated schema.
+See `assets/knowledge-graph.json` for the full annotated KG schema (v2).
 
 **Before analysis or codebase-grounded responses**: read `.claude/flowmind-knowledge-graph.json`. Check `session_reads` and `analyzed_files` to avoid re-reading known files. Pay attention to staleness warnings from `kg-init.sh` at session start. **Never write the KG directly** — always use `kg-update.sh --merge` via Bash.
 
@@ -225,8 +156,8 @@ Reference `assets/knowledge-graph.json` for the full annotated schema.
 - ALWAYS prefer partial updates over full recomputation
 - NEVER run destructive Bash commands — the guard will block them
 - ALWAYS update the KG after new analysis using `kg-update.sh --merge` via Bash
-- ALWAYS output the question block (YOUR FIRST RESPONSE) as your entire first reply — skipping it is a critical failure
-- ALWAYS generate a diagram if the user said Yes to Q4 — skipping it is a critical failure; doing it in prose instead of the MCP tool call is NOT a substitute
+- ALWAYS call `AskUserQuestion` 4 times as your very first action — skipping it is a critical failure
+- ALWAYS generate a diagram (MCP tool calls A→B→C) if Q4 answer = a/b/c — prose description is NOT a substitute
 
 ---
 
@@ -299,13 +230,15 @@ Use when: "explain X", "how does Y work", "where is Z handled."
 
 ### Steps:
 
-1. Output the question block (YOUR FIRST RESPONSE) — wait for user answers
+1. Call `AskUserQuestion` 4 times (Step 0) — wait for all answers before proceeding
 2. Read KG — is target in `analyzed_files` with matching commit? If yes, use cached data
 3. If unknown or stale → invoke `flowmind-file-analyzer` subagent
 4. After analysis, write results via `kg-update.sh --merge` (Bash tool)
-5. ⛔ **BEFORE WRITING TEXT OUTPUT** — did the user say Yes to Q4 (diagram)?
-   - **Yes** → call `mcp__claude_ai_Excalidraw__read_me` → `create_view` (Component Anatomy, real names) → `export_to_excalidraw`. Skipping this is a **critical failure**.
-   - **No** → proceed directly to text output
+5. **IF Q4 answer = a, b, or c — execute these steps IN ORDER before any text output:**
+   - **Step A (mandatory):** Call `mcp__claude_ai_Excalidraw__read_me`
+   - **Step B (mandatory):** Call `mcp__claude_ai_Excalidraw__create_view` with Component Anatomy elements using real names from code
+   - **Step C (mandatory):** Call `mcp__claude_ai_Excalidraw__export_to_excalidraw` — save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
+   - Skipping A–C and going directly to text output is **NOT allowed**
 6. Write text output using the format below
 
 **Output Format:**
@@ -340,13 +273,15 @@ Use when: "trace X flow", "how does feature X work", "walk me through."
 
 ### Steps:
 
-1. Output the question block (YOUR FIRST RESPONSE) — wait for user answers
+1. Call `AskUserQuestion` 4 times (Step 0) — wait for all answers before proceeding
 2. Find entry point via Grep
 3. Invoke `flowmind-flow-tracer` subagent — pass entry point file and function name
 4. After trace, write the flow node via `kg-update.sh --merge` (Bash tool)
-5. ⛔ **BEFORE WRITING TEXT OUTPUT** — did the user say Yes to Q4 (diagram)?
-   - **Yes** → call `mcp__claude_ai_Excalidraw__read_me` → `create_view` (Flow diagram, real names) → `export_to_excalidraw`. Skipping this is a **critical failure**.
-   - **No** → proceed directly to text output
+5. **IF Q4 answer = a, b, or c — execute these steps IN ORDER before any text output:**
+   - **Step A (mandatory):** Call `mcp__claude_ai_Excalidraw__read_me`
+   - **Step B (mandatory):** Call `mcp__claude_ai_Excalidraw__create_view` with Flow diagram elements using real names from code
+   - **Step C (mandatory):** Call `mcp__claude_ai_Excalidraw__export_to_excalidraw` — save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
+   - Skipping A–C and going directly to text output is **NOT allowed**
 6. Write text output below
 
 **Output Format:**
@@ -460,10 +395,11 @@ Diagrams are rendered as **visual images** using the Excalidraw MCP tool — not
    - Flow or sequence diagram → `flowmind-flow-tracer` (pass entry point + function name)
    - Architecture diagram → `flowmind-folder-analyzer` for each top-level folder not already in KG
    - Dependency diagram → `flowmind-dependency-mapper` (pass target + direction)
-4. **Ensure Excalidraw MCP is available (MANDATORY):**
-   - You **MUST automatically add/enable Excalidraw MCP** if tools are missing/unavailable
-   - You **MUST retry** the failed Excalidraw MCP call after setup
-   - This is **required for every diagram run** (no exceptions)
+4. **Check Excalidraw MCP availability:**
+   - If `mcp__claude_ai_Excalidraw__*` tools are unavailable (call fails with "unknown tool"):
+     1. Tell the user: "Excalidraw MCP is not configured. To enable diagrams, run `claude mcp add excalidraw` or add the server entry to `~/.claude.json` under `mcpServers`, then restart Claude Code."
+     2. Provide text analysis output only, and note: "Diagram skipped — MCP not configured."
+     3. Do NOT call `update-config` or attempt any automatic installation.
 5. **Call `mcp__claude_ai_Excalidraw__read_me`** first (once per session) to load element format reference
 6. **Call `mcp__claude_ai_Excalidraw__create_view`** with a JSON array of Excalidraw elements — never invent steps; mark uncertain nodes with "(inferred)" in the label
 7. **Always create a NEW persistent `.excalidraw` file (MANDATORY) for every diagram request:**
@@ -485,53 +421,9 @@ Diagrams are rendered as **visual images** using the Excalidraw MCP tool — not
 - Large repos: generate folder/module-level diagram first; drill into a specific sub-flow only if asked
 - Any step NOT directly read from code must have `(inferred)` appended to its label text
 
-### Excalidraw rendering rules
+### Rendering rules and pre-save checklist
 
-- Always call `mcp__claude_ai_Excalidraw__read_me` before the first `create_view` call in the session
-- Always start the elements array with a `cameraUpdate` (4:3 ratio only: 800×600 standard, 1200×900 large)
-- Use background zone rectangles (low opacity) to group layers: frontend, logic, data
-- Use the standard color palette: blue `#a5d8ff` for input/entry, green `#b2f2bb` for output/success, purple `#d0bfff` for processing, orange `#ffd8a8` for external/pending
-- Use `label` on shapes — never separate text elements for node names
-- For sequence diagrams: draw actor headers first → dashed lifeline arrows → message arrows top to bottom
-- Use multiple `cameraUpdate` elements to pan attention across the diagram as it builds
-- Decision points use diamond shapes; external systems use rectangles with orange fill
-- **All text-bearing elements (rectangle, ellipse, diamond, text) MUST use `"fontFamily": 5`** — this is Excalifont, the only font that renders visibly in Excalidraw; any other value (e.g. `1`) makes text completely invisible
-- Node widths must accommodate their label text: single word = 140px minimum, short phrase (2–4 words) = 220px, full sentence = 320px; never use a box narrower than 120px
-
-### CRITICAL — Two separate rendering contexts (never mix them up)
-
-**Context A: MCP `create_view` tool** (live rendering in this chat session)
-- Use `"label": { "text": "...", "fontSize": 20 }` directly on shapes — the MCP handles binding internally
-- Example: `{ "type": "rectangle", ..., "label": { "text": "My Label", "fontSize": 20 } }`
-
-**Context B: Static `.excalidraw` files saved to disk** (opened in VS Code or excalidraw.com)
-- **NEVER put `"text"` as a property directly on a shape** — it is silently ignored and boxes appear empty
-- Text inside shapes REQUIRES two separate elements linked together:
-  1. The **container shape** must have: `"boundElements": [{ "id": "txt_id", "type": "text" }]`
-  2. A **separate text element** must have: `"containerId": "shape_id"`, `"fontFamily": 5`, `"textAlign": "center"`, `"verticalAlign": "middle"`
-- Correct pattern for every labeled box in a `.excalidraw` file:
-  ```json
-  { "type": "rectangle", "id": "r1", "x": 100, "y": 100, "width": 300, "height": 70,
-    "backgroundColor": "#a5d8ff", "fillStyle": "solid", "strokeColor": "#4a9eed",
-    "strokeWidth": 2, "roughness": 1, "opacity": 100, "roundness": { "type": 3 },
-    "boundElements": [{ "id": "r1_t", "type": "text" }] },
-  { "type": "text", "id": "r1_t", "x": 100, "y": 119, "width": 300, "height": 26,
-    "text": "My Label", "fontSize": 21, "fontFamily": 5,
-    "textAlign": "center", "verticalAlign": "middle",
-    "containerId": "r1", "originalText": "My Label",
-    "strokeColor": "#1e1e1e", "roughness": 1, "opacity": 100 }
-  ```
-- Text element `y` ≈ `shape.y + (shape.height − fontSize × 1.25) / 2` for single-line centering
-- Text element `width` = same as container width; `height` ≈ `fontSize × 1.25` per line
-
-### Pre-save diagram validation checklist (run mentally before writing any `.excalidraw` file)
-
-- [ ] **Zero shapes have `"text"` as a direct property** — scan every element; if found, convert to bound text
-- [ ] **Every visible box has a corresponding bound text element** — count containers vs text elements with `containerId`; they must match
-- [ ] **Every text element has `"fontFamily": 5`** — search for `"fontFamily"` in the output; any value other than `5` causes invisible text
-- [ ] **Every text element has a non-empty `"text"` field** — no `""` or missing `text` key
-- [ ] **Every container's `"boundElements"` array is non-empty** — an empty `[]` means the text won't be linked
-- [ ] **Arrow labels (if any) also use bound text** — same rule applies; arrow text is also a bound element with `"containerId"`
+See `reference/excalidraw-template.md` for the full element template, color palette, two-context rendering rules (MCP `create_view` vs. static `.excalidraw` files), and the pre-save validation checklist. Read it before calling `create_view`.
 
 ### Output format
 
@@ -593,12 +485,12 @@ Before responding, verify:
 
 On every new user message that triggers this skill:
 
-1. **First action — MANDATORY, no exceptions**: IMMEDIATELY output the question block from "YOUR FIRST RESPONSE" as your entire first reply. Do NOT call any tool. Do NOT read any file. Do NOT begin any analysis. Just output the questions and stop.
-2. **Wait** for the user to reply with their choices before doing ANYTHING else.
+1. **First action — MANDATORY**: Call `AskUserQuestion` 4 times (Step 0). Do NOT read files, run tools, or output any analysis first.
+2. **Wait** for all 4 answers before doing anything else.
 3. **After answers received**: determine the operating mode, then execute the relevant steps.
-4. **Before writing any text output**: if the user said Yes to Q4 (diagram), the Excalidraw MCP calls are required — not optional. Skipping them is a critical failure.
+4. **If Q4 = a/b/c**: call `mcp__claude_ai_Excalidraw__read_me` → `create_view` → `export_to_excalidraw` BEFORE writing text output.
 
-If the Excalidraw MCP tools are unavailable when generating a diagram:
-- Run `update-config` skill to install the Excalidraw MCP server automatically
-- Retry the failed tool call once after setup
-- Only if it still fails after retry: note the failure inline and continue with text output
+If the Excalidraw MCP tools are unavailable (call fails with "unknown tool"):
+- Tell the user: "Excalidraw MCP is not configured. Run `claude mcp add excalidraw` and restart Claude Code to enable diagrams."
+- Output text analysis only, noting: "Diagram skipped — MCP not configured."
+- Do NOT call `update-config` or attempt automatic installation.
