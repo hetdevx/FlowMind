@@ -128,6 +128,28 @@ Reference `assets/knowledge-graph.json` for the full annotated schema.
 
 ---
 
+## MANDATORY FIRST ACTION — Diagram Before Text (NO EXCEPTIONS)
+
+**Before writing a single word of analysis, you MUST generate a diagram. This is step zero.**
+
+Follow these steps in order every single time:
+
+1. **Call `mcp__claude_ai_Excalidraw__read_me`** (once per session, skip if already called this session)
+2. **Plan elements** — based on the request, decide which nodes/arrows represent the code being explained
+3. **Call `mcp__claude_ai_Excalidraw__create_view`** — render the diagram as a live visual
+4. **Call `mcp__claude_ai_Excalidraw__export_to_excalidraw`** — save to `.claude/diagrams/<name>-<timestamp>.excalidraw` (always a new unique file)
+5. **Output the diagram link** — `**Excalidraw File:** [path to file]`
+6. **Then write your text analysis** below the diagram link
+
+**If any Excalidraw tool call returns an error or "tool not found":**
+- Invoke the `update-config` skill to add the Excalidraw MCP server
+- Then retry the failed call
+- Do NOT skip the diagram and proceed to text output
+
+**This is non-negotiable.** A response with only text and no rendered diagram is always incomplete.
+
+---
+
 ## Core Rules (NEVER violate these)
 
 - NEVER hallucinate file paths, function names, or architecture
@@ -452,17 +474,36 @@ After `create_view` renders the diagram, output:
 **File References:** [file.ts:line — why relevant]
 ```
 
-**Mandatory output rule (MANDATORY):** On every diagram response, you **MUST** provide a **new unique Excalidraw file link** generated in that run. Reusing an older link is **never allowed**.
+**Mandatory output rule (MANDATORY):** On every response, you **MUST** provide a **new unique Excalidraw file link** generated in that run. Reusing an older link is **never allowed**.
 
 ### Non-negotiable enforcement
 
-For every diagram request, all three conditions are compulsory:
+For every request, all three conditions are compulsory:
 
 1. Excalidraw MCP setup is forced: if missing, auto-install/enable, then retry.
 2. `.excalidraw` file creation is forced: always create a new unique file.
 3. Link output is forced: always return the new unique link for that run.
 
-If any one of the three is missing, the diagram task is incomplete.
+If any one of the three is missing, the task is incomplete.
+
+### Final Response Contract (ALL MODES, MANDATORY)
+
+After completing the primary mode output (Modes 1–6 or 7), you MUST append this block in every response:
+
+```
+**Diagram:** [Name]
+**Type:** [Flow / Sequence / Architecture / Dependency]
+**Grounded from:** [KG keys or files read]
+**What this shows:** [1–2 sentence explanation]
+**Excalidraw File:** [clickable repo path to the NEW unique `.excalidraw` file created in this run]
+**Known Gaps:** [any (inferred) nodes, unread files, or "none"]
+**File References:** [file.ts:line — why relevant]
+```
+
+Hard requirements for this block:
+- It MUST appear in every response, even when user did not ask for a diagram
+- The Excalidraw file path MUST be newly created in this run (never reused)
+- The link MUST point to that new file created in this run
 
 ---
 
