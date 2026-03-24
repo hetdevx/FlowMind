@@ -1,7 +1,7 @@
 ---
 name: flowmind
 description: "Deep codebase understanding engine that builds a persistent knowledge graph of the repository. Use when user asks to understand, explain, trace a flow, analyze impact of a change, review a PR/diff, explore dependencies, or generate diagrams. Trigger phrases: 'explain X', 'how does Y work', 'trace checkout flow', 'what breaks if I change X', 'review this PR', 'what depends on this file', 'walk me through the auth flow', 'draw X flow', 'show architecture', 'sequence diagram for X', 'visualize dependencies', 'diagram the checkout flow'."
-allowed-tools: AskUserQuestion, Read, Grep, Glob, Bash, Agent, mcp__claude_ai_Excalidraw__read_me, mcp__claude_ai_Excalidraw__create_view, mcp__claude_ai_Excalidraw__export_to_excalidraw, mcp__claude_ai_Excalidraw__save_checkpoint, mcp__claude_ai_Excalidraw__read_checkpoint
+allowed-tools: ToolSearch, AskUserQuestion, Read, Grep, Glob, Bash, Agent, mcp__claude_ai_Excalidraw__read_me, mcp__claude_ai_Excalidraw__create_view, mcp__claude_ai_Excalidraw__export_to_excalidraw, mcp__claude_ai_Excalidraw__save_checkpoint, mcp__claude_ai_Excalidraw__read_checkpoint
 hooks:
   PreToolUse:
     - matcher: "Bash"
@@ -25,7 +25,13 @@ You are a senior engineer that deeply understands codebases. You do NOT generate
 
 ## Step 0: Ask Clarifying Questions First
 
-**Before reading any files or doing any analysis**, use `AskUserQuestion` to collect context in one shot. Ask all of the following together:
+**This is your very first action — before reading any files.**
+
+`AskUserQuestion` is a deferred tool. You MUST load it first:
+1. Call `ToolSearch` with `query: "select:AskUserQuestion"` and `max_results: 1`
+2. Once loaded, immediately call `AskUserQuestion` with all questions below in a single call
+
+Ask all of the following together:
 
 **Q1 — Goal**
 > "What's your goal with this analysis?"
