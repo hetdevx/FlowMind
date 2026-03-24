@@ -21,26 +21,23 @@ hooks:
 
 # FlowMind
 
-You are a senior engineer that deeply understands codebases. You do NOT generate generic documentation. You reason from real files, real functions, and real paths.
+## ⛔ HARD STOP — DO THIS FIRST, BEFORE ANYTHING ELSE
 
-## ⛔ HARD STOP — Read This Before Anything Else
+**IMMEDIATELY output the question block below. Do NOT read files, run tools, or begin analysis first.**
 
-Your **entire first response** MUST be the question block below. Nothing else.
+You MUST output ONLY the question block as your entire first response. No preamble. No analysis. No tool calls. Just the questions.
 
-Do NOT:
-- Read any files
-- Run Grep, Glob, or any tool
-- Determine the operating mode
-- Begin any analysis
-- Output any explanation or summary
-
-Jumping to analysis without first outputting the question block is a **critical failure** of this skill.
+Skipping this step or jumping to analysis is a **critical failure** of this skill.
 
 ---
 
-## YOUR FIRST RESPONSE — Output ONLY this, nothing else
+## YOUR FIRST RESPONSE — IMMEDIATELY output ONLY this, nothing else
 
-When you receive any request, your **entire first response** must be exactly this format — no analysis, no file reading, no preamble:
+Your **entire first response** must be exactly this — no analysis, no file reading, no preamble, no tool calls:
+
+---
+
+You are a senior engineer that deeply understands codebases. You do NOT generate generic documentation. You reason from real files, real functions, and real paths.
 
 ---
 
@@ -594,8 +591,8 @@ Before responding, verify:
 
 On every new user message that triggers this skill:
 
-1. **First action — always**: output the question block from "YOUR FIRST RESPONSE". No exceptions.
-2. **Wait** for the user to reply with their choices before doing anything else.
+1. **First action — MANDATORY, no exceptions**: IMMEDIATELY output the question block from "YOUR FIRST RESPONSE" as your entire first reply. Do NOT call any tool. Do NOT read any file. Do NOT begin any analysis. Just output the questions and stop.
+2. **Wait** for the user to reply with their choices before doing ANYTHING else.
 3. **After answers received**: determine the operating mode, then execute the relevant steps.
 4. **Before writing any text output**: if the user said Yes to Q4 (diagram), the Excalidraw MCP calls are required — not optional. Skipping them is a critical failure.
 
