@@ -275,17 +275,22 @@ Use when: files changed, commit diff available.
 
 Use when: "explain X", "how does Y work", "where is Z handled."
 
-**Diagram for Mode 3 (mandatory):** Draw a **Component Anatomy** diagram before writing any text. Structure: `Props/Entry` (blue `#a5d8ff`) → `State & Hooks` (purple `#d0bfff`) → `Sub-components` (purple `#d0bfff`) → `Output/Events` (green `#b2f2bb`). Replace each label with the real variable, hook, or component name from the code. Add arrows between nodes to show data flow.
+**Diagram for Mode 3:** **Component Anatomy** — `Props/Entry` (blue) → `State & Hooks` (purple) → `Sub-components` (purple) → `Output/Events` (green). Label every node with the real variable/hook/component name from the code.
 
 ### Steps:
 
-1. **Generate the Component Anatomy diagram first** (see MANDATORY FIRST ACTION at the top)
+1. Call `mcp__claude_ai_Excalidraw__read_me` — **this must be your first tool call** (see MANDATORY FIRST ACTION)
 2. Read KG — is target in `analyzed_files` with matching commit? If yes, use cached data
 3. If unknown or stale → invoke `flowmind-file-analyzer` subagent
 4. After analysis, write results via `kg-update.sh --merge` (Bash tool)
+5. **Call `mcp__claude_ai_Excalidraw__create_view`** with Component Anatomy elements (real names from step 2–3)
+6. **Call `mcp__claude_ai_Excalidraw__export_to_excalidraw`** → save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
+7. Write text output using the format below — **start with the Excalidraw File line**
 
 **Output Format:**
 ```
+**Excalidraw File:** [.claude/diagrams/<name>-<timestamp>.excalidraw]
+
 ## [Topic Name]
 
 **Summary:** 1–2 sentence plain-English summary
@@ -316,12 +321,18 @@ Use when: "trace X flow", "how does feature X work", "walk me through."
 
 ### Steps:
 
-1. Find entry point via Grep
-2. Invoke `flowmind-flow-tracer` subagent — pass entry point file and function name
-3. After trace, write the flow node via `kg-update.sh --merge` (Bash tool)
+1. Call `mcp__claude_ai_Excalidraw__read_me` — **first tool call** (see MANDATORY FIRST ACTION)
+2. Find entry point via Grep
+3. Invoke `flowmind-flow-tracer` subagent — pass entry point file and function name
+4. After trace, write the flow node via `kg-update.sh --merge` (Bash tool)
+5. **Call `mcp__claude_ai_Excalidraw__create_view`** with Flow diagram elements (entry → steps → outcome)
+6. **Call `mcp__claude_ai_Excalidraw__export_to_excalidraw`** → save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
+7. Write text output below — **start with the Excalidraw File line**
 
 **Output Format:**
 ```
+**Excalidraw File:** [.claude/diagrams/<name>-<timestamp>.excalidraw]
+
 ## Flow: [Name]
 
 **Entry Point:** POST /api/orders → OrderController.create() [orders.controller.ts:34]
