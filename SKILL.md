@@ -1,7 +1,7 @@
 ---
 name: flowmind
 description: "Deep codebase understanding engine that builds a persistent knowledge graph of the repository. Use when user asks to understand, explain, trace a flow, analyze impact of a change, review a PR/diff, explore dependencies, or generate diagrams. Trigger phrases: 'explain X', 'how does Y work', 'trace checkout flow', 'what breaks if I change X', 'review this PR', 'what depends on this file', 'walk me through the auth flow', 'draw X flow', 'show architecture', 'sequence diagram for X', 'visualize dependencies', 'diagram the checkout flow'."
-allowed-tools: AskUserQuestion, Read, Grep, Glob, Bash, Agent, mcp__claude_ai_Excalidraw__read_me, mcp__claude_ai_Excalidraw__create_view, mcp__claude_ai_Excalidraw__export_to_excalidraw, mcp__claude_ai_Excalidraw__save_checkpoint, mcp__claude_ai_Excalidraw__read_checkpoint
+allowed-tools: AskUserQuestion, ToolSearch, Read, Grep, Glob, Bash, Agent, mcp__claude_ai_Excalidraw__read_me, mcp__claude_ai_Excalidraw__create_view, mcp__claude_ai_Excalidraw__export_to_excalidraw, mcp__claude_ai_Excalidraw__save_checkpoint, mcp__claude_ai_Excalidraw__read_checkpoint, mcp__excalidraw__read_me, mcp__excalidraw__create_view, mcp__excalidraw__export_to_excalidraw, mcp__excalidraw__save_checkpoint, mcp__excalidraw__read_checkpoint
 hooks:
   PreToolUse:
     - matcher: "Bash"
@@ -21,9 +21,13 @@ hooks:
 
 # FlowMind
 
-## Step 0 — MANDATORY: Call AskUserQuestion Before Anything Else
+## Step 0 — MANDATORY: Load AskUserQuestion, Then Ask 3 Questions
 
-Your **very first action** must be to call `AskUserQuestion` with the questions below. Do NOT read any file, run Grep/Glob, call any tool, or output any analysis before doing this.
+Your **very first action** — before ANY file read, Grep, Glob, analysis, or prose — must be:
+
+1. **Call `ToolSearch`** with `query: "select:AskUserQuestion"`, `max_results: 1`
+   - This loads the deferred `AskUserQuestion` tool into the active toolset. Without this step the tool is unavailable and all 3 questions will be silently skipped — a critical failure.
+2. **Immediately call `AskUserQuestion`** (now loaded) with the questions below.
 
 Call `AskUserQuestion` **3 times in sequence** (one call per question):
 
@@ -39,13 +43,13 @@ Call `AskUserQuestion` **3 times in sequence** (one call per question):
 > "Which area to focus on?" (skip if already clear from the request)
 > Options: a) Everything — full analysis  b) Business / pricing logic  c) State management & data flow  d) Rendering & UI structure
 
-**After all 3 answers are received:** proceed to Step 0.5 (diagram offer), then determine the operating mode.
+**After all 3 answers are received** (not 4 — there are exactly 3 questions)**:** proceed to Step 0.5 (diagram offer), then determine the operating mode.
 
 ---
 
 ## Step 0.5 — Offer an Excalidraw Diagram
 
-After receiving the 4 answers from Step 0, **proactively offer a diagram before doing any analysis or writing any output.**
+After receiving the 3 answers from Step 0, **proactively offer a diagram before doing any analysis or writing any output.**
 
 Say something like:
 > "Before I start, would you like an architecture diagram so you can see the overall structure and give feedback? I can generate it in Excalidraw."
@@ -61,9 +65,9 @@ Say something like:
 Always deliver **both approaches** — not one or the other:
 
 **Approach 1 — MCP Interactive View (if Excalidraw MCP is available):**
-1. Call `mcp__claude_ai_Excalidraw__read_me` (once per session)
-2. Call `mcp__claude_ai_Excalidraw__create_view` with the diagram elements — renders an interactive diagram the user can edit live
-3. Call `mcp__claude_ai_Excalidraw__export_to_excalidraw` — saves a new unique file to `.claude/diagrams/<name>-<timestamp>.excalidraw`
+1. Probe both tool prefixes: try `mcp__claude_ai_Excalidraw__read_me`; if unknown, try `mcp__excalidraw__read_me`. Use whichever succeeds. If both fail, run `claude mcp add excalidraw https://mcp.excalidraw.com/mcp` via Bash, tell the user to restart, and skip to Approach 2.
+2. Call `<working_prefix>__create_view` with the diagram elements — renders an interactive diagram the user can edit live
+3. Call `<working_prefix>__export_to_excalidraw` — saves a new unique file to `.claude/diagrams/<name>-<timestamp>.excalidraw`
 4. Output a clickable link: `**Excalidraw File:** [.claude/diagrams/<name>-<timestamp>.excalidraw](.claude/diagrams/<name>-<timestamp>.excalidraw)`
 
 **Approach 2 — Static `.excalidraw` file (always, even if MCP is available):**
@@ -73,9 +77,11 @@ Always deliver **both approaches** — not one or the other:
 
 Both approaches must always produce a saved `.excalidraw` file with a clickable link in the output — never skip the file or the link.
 
-**If MCP is unavailable:**
-Tell the user: "Excalidraw MCP is not configured. Run `claude mcp add excalidraw` and restart Claude Code to enable the interactive view. I've still generated the `.excalidraw` file below — open it in the VS Code extension or excalidraw.com."
-Then deliver Approach 2 only.
+**If MCP is unavailable (both prefixes fail):**
+1. Run via Bash: `claude mcp add excalidraw https://mcp.excalidraw.com/mcp`
+2. Tell the user: "Excalidraw MCP wasn't configured — I've registered it. Restart Claude Code and re-run your request to get the interactive view. I've still generated the `.excalidraw` file below — open it in the VS Code extension or excalidraw.com."
+3. Deliver Approach 2 only for this run.
+4. Never skip the diagram or the message silently.
 
 After creating the diagram, ask: "Does this structure look right before I proceed?" — wait for confirmation or adjust before continuing.
 
@@ -94,9 +100,9 @@ You are a senior engineer that deeply understands codebases. You do NOT generate
 
 After completing the text analysis, if the user requested a diagram:
 
-1. Call `mcp__claude_ai_Excalidraw__read_me` (once per session)
-2. Call `mcp__claude_ai_Excalidraw__create_view` with elements matching the chosen diagram type, using real names from the code you read
-3. Call `mcp__claude_ai_Excalidraw__export_to_excalidraw` — save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
+1. Probe both prefixes: try `mcp__claude_ai_Excalidraw__read_me`; if unknown, try `mcp__excalidraw__read_me`. Use whichever succeeds.
+2. Call `<working_prefix>__create_view` with elements matching the chosen diagram type, using real names from the code you read
+3. Call `<working_prefix>__export_to_excalidraw` — save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
 4. Output: `**Excalidraw File:** [path]`
 
 See `reference/excalidraw-template.md` for the element template, color palette, and rendering rules.
@@ -191,7 +197,7 @@ See `assets/knowledge-graph.json` for the full annotated KG schema (v2).
 - ALWAYS prefer partial updates over full recomputation
 - NEVER run destructive Bash commands — the guard will block them
 - ALWAYS update the KG after new analysis using `kg-update.sh --merge` via Bash
-- ALWAYS call `AskUserQuestion` 3 times as your very first action — skipping it is a critical failure
+- ALWAYS call `ToolSearch` first to load `AskUserQuestion`, then call it 3 times — skipping either is a critical failure
 - ALWAYS offer a diagram in Step 0.5 before any analysis — skipping it is a critical failure
 - ALWAYS generate a diagram (MCP tool calls A→B→C) if user said yes in Step 0.5 — prose description is NOT a substitute
 
@@ -266,14 +272,14 @@ Use when: "explain X", "how does Y work", "where is Z handled."
 
 ### Steps:
 
-1. Call `AskUserQuestion` 4 times (Step 0) — wait for all answers before proceeding
+1. Call `ToolSearch` (`query: "select:AskUserQuestion"`) then call `AskUserQuestion` 3 times (Step 0) — wait for all answers before proceeding
 2. Read KG — is target in `analyzed_files` with matching commit? If yes, use cached data
 3. If unknown or stale → invoke `flowmind-file-analyzer` subagent
 4. After analysis, write results via `kg-update.sh --merge` (Bash tool)
 5. **IF user said Yes in Step 0.5 — execute these steps IN ORDER before any text output:**
-   - **Step A (mandatory):** Call `mcp__claude_ai_Excalidraw__read_me`
-   - **Step B (mandatory):** Call `mcp__claude_ai_Excalidraw__create_view` with Component Anatomy elements using real names from code
-   - **Step C (mandatory):** Call `mcp__claude_ai_Excalidraw__export_to_excalidraw` — save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
+   - **Step A (mandatory):** Probe both prefixes: try `mcp__claude_ai_Excalidraw__read_me`; if unknown, try `mcp__excalidraw__read_me`. Use whichever succeeds.
+   - **Step B (mandatory):** Call `<working_prefix>__create_view` with Component Anatomy elements using real names from code
+   - **Step C (mandatory):** Call `<working_prefix>__export_to_excalidraw` — save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
    - Skipping A–C and going directly to text output is **NOT allowed**
 6. Write text output using the format below
 
@@ -309,14 +315,14 @@ Use when: "trace X flow", "how does feature X work", "walk me through."
 
 ### Steps:
 
-1. Call `AskUserQuestion` 4 times (Step 0) — wait for all answers before proceeding
+1. Call `ToolSearch` (`query: "select:AskUserQuestion"`) then call `AskUserQuestion` 3 times (Step 0) — wait for all answers before proceeding
 2. Find entry point via Grep
 3. Invoke `flowmind-flow-tracer` subagent — pass entry point file and function name
 4. After trace, write the flow node via `kg-update.sh --merge` (Bash tool)
 5. **IF user said Yes in Step 0.5 — execute these steps IN ORDER before any text output:**
-   - **Step A (mandatory):** Call `mcp__claude_ai_Excalidraw__read_me`
-   - **Step B (mandatory):** Call `mcp__claude_ai_Excalidraw__create_view` with Flow diagram elements using real names from code
-   - **Step C (mandatory):** Call `mcp__claude_ai_Excalidraw__export_to_excalidraw` — save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
+   - **Step A (mandatory):** Probe both prefixes: try `mcp__claude_ai_Excalidraw__read_me`; if unknown, try `mcp__excalidraw__read_me`. Use whichever succeeds.
+   - **Step B (mandatory):** Call `<working_prefix>__create_view` with Flow diagram elements using real names from code
+   - **Step C (mandatory):** Call `<working_prefix>__export_to_excalidraw` — save to `.claude/diagrams/<name>-<timestamp>.excalidraw`
    - Skipping A–C and going directly to text output is **NOT allowed**
 6. Write text output below
 
@@ -431,15 +437,19 @@ Diagrams are rendered as **visual images** using the Excalidraw MCP tool — not
    - Flow or sequence diagram → `flowmind-flow-tracer` (pass entry point + function name)
    - Architecture diagram → `flowmind-folder-analyzer` for each top-level folder not already in KG
    - Dependency diagram → `flowmind-dependency-mapper` (pass target + direction)
-4. **Check Excalidraw MCP availability:**
-   - If `mcp__claude_ai_Excalidraw__*` tools are unavailable (call fails with "unknown tool"):
-     1. Tell the user: "Excalidraw MCP is not configured. To enable diagrams, run `claude mcp add excalidraw` or add the server entry to `~/.claude.json` under `mcpServers`, then restart Claude Code."
-     2. Provide text analysis output only, and note: "Diagram skipped — MCP not configured."
-     3. Do NOT call `update-config` or attempt any automatic installation.
-5. **Call `mcp__claude_ai_Excalidraw__read_me`** first (once per session) to load element format reference
-6. **Call `mcp__claude_ai_Excalidraw__create_view`** with a JSON array of Excalidraw elements — never invent steps; mark uncertain nodes with "(inferred)" in the label
+4. **Check Excalidraw MCP availability — probe BOTH possible tool name prefixes:**
+   - Try calling `mcp__claude_ai_Excalidraw__read_me` (registered as `claude_ai_Excalidraw`)
+   - If that fails, try `mcp__excalidraw__read_me` (registered as `excalidraw`)
+   - If BOTH fail (unknown tool error):
+     1. **Auto-register via Bash:** run `claude mcp add excalidraw https://mcp.excalidraw.com/mcp`
+     2. Tell the user: "Excalidraw MCP wasn't configured — I've registered it now. Please restart Claude Code and re-run your request. The diagram will generate automatically on the next run."
+     3. Do **NOT** skip silently — always inform the user with the restart instruction.
+     4. Provide text analysis only for this run, noting: "Diagram skipped — MCP registered, requires restart."
+   - If either probe succeeds, note which prefix worked and use it for ALL subsequent Excalidraw calls this session (do not mix prefixes).
+5. **Call `<working_prefix>__read_me`** first (once per session) to load element format reference — this is the probe step above
+6. **Call `<working_prefix>__create_view`** with a JSON array of Excalidraw elements — never invent steps; mark uncertain nodes with "(inferred)" in the label
 7. **Always create a NEW persistent `.excalidraw` file (MANDATORY) for every diagram request:**
-   - Call `mcp__claude_ai_Excalidraw__export_to_excalidraw`
+   - Call `<working_prefix>__export_to_excalidraw`
    - Save to a **new unique repo path** every time (for example: `.claude/diagrams/<diagram-name>-<timestamp>.excalidraw`)
    - **Never overwrite or reuse** a previous `.excalidraw` file path
    - This is **required for every diagram request** (no exceptions)
@@ -456,6 +466,28 @@ Diagrams are rendered as **visual images** using the Excalidraw MCP tool — not
 - Omit trivial helpers (getters, formatters, logging) — high-signal steps only
 - Large repos: generate folder/module-level diagram first; drill into a specific sub-flow only if asked
 - Any step NOT directly read from code must have `(inferred)` appended to its label text
+
+### ⛔ MANDATORY CONTEXT DECISION — run before every diagram output
+
+Before generating ANY diagram JSON, answer this question:
+
+> **Am I calling `create_view`?** → Use **Context A**: put `"label": { "text": "...", "fontSize": 20, "fontFamily": 5 }` directly on the shape. No separate text element.
+>
+> **Am I writing a `.excalidraw` file to disk?** → Use **Context B**: NEVER use `"label"` or `"text"` directly on the shape — both are silently ignored and produce empty boxes. Every labeled box requires two linked elements: (1) container shape with `"boundElements": [{ "id": "txt_id", "type": "text" }]` and (2) separate text element with `"containerId": "shape_id"`, `"fontFamily": 5`.
+>
+> **If doing both** (create_view AND export): generate the elements **twice** — once in Context A format for `create_view`, once in Context B format for the `.excalidraw` file. Never reuse the same JSON for both.
+
+**fontFamily rule — memorize: always `"fontFamily": 5`**. Value `1` (Virgil) and `4` (Comic Schadenfreude) render invisible. Any other value is also invisible. `5` (Excalifont) is the only safe choice.
+
+**Pre-write mechanical check for Context B files (run before writing any `.excalidraw`):**
+1. Count shapes (rectangle/diamond/ellipse) = N. Count text elements with non-empty `"containerId"` = must also equal N.
+2. Every shape's `"boundElements"` array must be non-empty — `[]` means no linked text = empty box.
+3. Every text element must have `"fontFamily": 5` — any other value = invisible text.
+4. Every text element must have a non-empty `"text"` field — never `""` or missing.
+5. Zero shapes have `"text"` or `"label"` as a top-level property.
+6. Minimum widths: single word → 160px, 2–4 words → 240px, full method name → 320px.
+
+If any check fails: fix before writing. **Do not write a broken file.**
 
 ### Rendering rules and pre-save checklist
 
@@ -513,7 +545,8 @@ Before responding, verify:
 - [ ] No generic statements like "the service handles business logic"
 - [ ] KG updated after any new analysis (`kg-update.sh --merge` via Bash)
 - [ ] Diagrams: every node label is a real name from code; inferred nodes marked `(inferred)`
-- [ ] Diagrams: if writing a `.excalidraw` file — ran the pre-save validation checklist above; no shape has `"text"` as a direct property; every box has a bound text element with `fontFamily: 5`
+- [ ] Diagrams: made the mandatory Context A/B decision before generating JSON — `create_view` uses label-on-shape (Context A), `.excalidraw` file uses bound text elements (Context B), never mixed
+- [ ] Diagrams: if writing a `.excalidraw` file — ran the 6-point pre-save checklist; no shape has `"text"` or `"label"` as a top-level property; every box has a bound text element with `"fontFamily": 5`
 
 ---
 
@@ -521,12 +554,13 @@ Before responding, verify:
 
 On every new user message that triggers this skill:
 
-1. **First action — MANDATORY**: Call `AskUserQuestion` 4 times (Step 0). Do NOT read files, run tools, or output any analysis first.
-2. **Wait** for all 4 answers before doing anything else.
+1. **First action — MANDATORY**: Call `ToolSearch` (`query: "select:AskUserQuestion"`) to load the tool, then call `AskUserQuestion` 3 times (Step 0). Do NOT read files, run tools, or output any analysis first.
+2. **Wait** for all 3 answers before doing anything else.
 3. **After answers received**: determine the operating mode, then execute the relevant steps.
-4. **If user said Yes in Step 0.5**: call `mcp__claude_ai_Excalidraw__read_me` → `create_view` → `export_to_excalidraw` BEFORE writing text output.
+4. **If user said Yes in Step 0.5**: probe `mcp__claude_ai_Excalidraw__read_me` / `mcp__excalidraw__read_me` → `<working_prefix>__create_view` → `<working_prefix>__export_to_excalidraw` BEFORE writing text output.
 
-If the Excalidraw MCP tools are unavailable (call fails with "unknown tool"):
-- Tell the user: "Excalidraw MCP is not configured. Run `claude mcp add excalidraw` and restart Claude Code to enable diagrams."
-- Output text analysis only, noting: "Diagram skipped — MCP not configured."
-- Do NOT call `update-config` or attempt automatic installation.
+If the Excalidraw MCP tools are unavailable (both prefixes fail with "unknown tool"):
+1. Run via Bash: `claude mcp add excalidraw https://mcp.excalidraw.com/mcp`
+2. Tell the user: "Excalidraw MCP wasn't configured — I've registered it. Restart Claude Code and re-run your request."
+3. Output text analysis only, noting: "Diagram skipped — MCP registered, restart required."
+4. Never skip silently — always inform the user and give the restart instruction.
