@@ -6,7 +6,13 @@ A Claude Code skill that builds a persistent knowledge graph of your repository 
 
 ## Installation
 
-Copy the skill to your Claude global skills directory:
+Install via the skills CLI:
+
+```bash
+npx skills add https://github.com/hetdevx/flowmind --skill flowmind
+```
+
+Or copy the skill manually to your Claude global skills directory:
 
 ```bash
 cp -r FlowMind/ ~/.claude/skills/flowmind/
